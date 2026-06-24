@@ -1,0 +1,106 @@
+version: '3.9'
+
+services:
+  # ── Redis ──────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: linkd-redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── ML Service (Python / FastAPI) ──────────────────────────────────────
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: linkd-ml-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - MODEL_LOAD_STRATEGY=${MODEL_LOAD_STRATEGY:-lazy}
+      - SCREENSHOT_DIR=/app/screenshots
+      - VISUAL_SIMILARITY_THRESHOLD=${VISUAL_SIMILARITY_THRESHOLD:-0.82}
+      - FEAR_SCORE_THRESHOLD=${FEAR_SCORE_THRESHOLD:-0.6}
+      - PLAYWRIGHT_HEADLESS=true
+      - WEIGHT_FEAR=${WEIGHT_FEAR:-0.25}
+      - WEIGHT_FORM=${WEIGHT_FORM:-0.30}
+      - WEIGHT_OCR=${WEIGHT_OCR:-0.20}
+      - WEIGHT_VISUAL=${WEIGHT_VISUAL:-0.25}
+      - VERDICT_SAFE_THRESHOLD=${VERDICT_SAFE_THRESHOLD:-0.30}
+      - VERDICT_MALICIOUS_THRESHOLD=${VERDICT_MALICIOUS_THRESHOLD:-0.70}
+    volumes:
+      - ml_screenshots:/app/screenshots
+      - ml_models:/app/app/models/weights
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ── Gateway (Node.js / Express) ────────────────────────────────────────
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: linkd-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_TTL_SAFE=${REDIS_TTL_SAFE:-86400}
+      - REDIS_TTL_MALICIOUS=${REDIS_TTL_MALICIOUS:-259200}
+      - ML_SERVICE_URL=http://ml-service:8000
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - SCORE_SAFE_THRESHOLD=${SCORE_SAFE_THRESHOLD:-0.2}
+      - SCORE_MALICIOUS_THRESHOLD=${SCORE_MALICIOUS_THRESHOLD:-0.85}
+      - CONTENT_HASH_TIMEOUT=${CONTENT_HASH_TIMEOUT:-5000}
+    depends_on:
+      redis:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Dashboard (React / Vite) ───────────────────────────────────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: linkd-dashboard
+    ports:
+      - "5173:80"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  ml_screenshots:
+  ml_models:
+
+networks:
+  default:
+    name: linkd-network

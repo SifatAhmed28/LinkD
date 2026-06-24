@@ -1,0 +1,35 @@
+# Core
+fastapi>=0.115.5
+uvicorn[standard]>=0.32.1
+python-dotenv>=1.0.1
+pydantic>=2.10.3
+httpx>=0.28.1
+
+# ML & NLP (CPU-only for local dev — no CUDA required)
+torch>=2.6.0
+torchvision>=0.20.1
+transformers>=4.47.1
+sentencepiece>=0.2.0
+accelerate>=1.2.1
+
+# OCR
+easyocr>=1.7.2
+
+# Headless Browser (Screenshots)
+playwright>=1.49.0
+
+# Image Processing
+Pillow>=11.0.0
+numpy>=2.2.0
+scikit-learn>=1.6.0
+
+# HTML Parsing (for form behavior analysis)
+beautifulsoup4>=4.12.3
+lxml>=5.3.0
+
+# HTTP
+aiohttp>=3.11.10
+aiofiles>=24.1.0
+
+# Utilities
+scipy>=1.14.1

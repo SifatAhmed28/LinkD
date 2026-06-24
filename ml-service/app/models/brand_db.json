@@ -1,0 +1,7 @@
+{
+  "_comment": "Brand layout embedding database. Each entry contains a brand name and its pre-computed ResNet-50 visual embedding vector. To regenerate: run scripts/generate_brand_db.py",
+  "_instructions": "Run `python scripts/generate_brand_db.py` to populate real embeddings. Placeholder zeros are included so the system boots without crashing.",
+  "_version": "1.0.0",
+  "_model": "ResNet50 (IMAGENET1K_V2) — 2048-dim L2-normalized embedding",
+  "entries": []
+}
