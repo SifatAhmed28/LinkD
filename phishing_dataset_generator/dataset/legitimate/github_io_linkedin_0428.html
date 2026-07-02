@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Login, Sign in | LinkedIn</title>
+    <link rel="icon" type="image/x-icon" href="https://static.licdn.com/aero-v1/sc/h/akt4ae504epesldzj74dzred8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f3f2ef;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            color: rgba(0, 0, 0, 0.9);
+        }
+
+        /* Top Header Navigation Branding area */
+        header {
+            padding: 24px 32px;
+            max-width: 1128px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Responsive SVG Logo wrapper */
+        .logo {
+            width: 84px;
+            height: auto;
+            display: block;
+        }
+
+        /* Main Content UI Area */
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 12px 24px 40px;
+        }
+
+        .login-card {
+            background-color: #ffffff;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 24px 32px 32px;
+        }
+
+        .login-card h1 {
+            font-size: 32px;
+            font-weight: 600;
+            line-height: 1.25;
+            color: rgba(0, 0, 0, 0.9);
+            margin-bottom: 4px;
+        }
+
+        .login-card p {
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.6);
+            margin-bottom: 24px;
+        }
+
+        /* Input Form Elements styling */
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            height: 52px;
+            padding: 20px 12px 4px;
+            font-size: 16px;
+            border: 1px solid rgba(0, 0, 0, 0.6);
+            border-radius: 4px;
+            outline: none;
+            color: rgba(0, 0, 0, 0.9);
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        /* Float dynamic label mechanics */
+        .input-wrapper label {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: rgba(0, 0, 0, 0.6);
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+
+        /* Handle state changes when input contains values or focus elements */
+        .input-wrapper input:focus,
+        .input-wrapper input:not(:placeholder-shown) {
+            border-color: #0a66c2;
+            border-width: 2px;
+            padding-top: 24px;
+            padding-bottom: 4px;
+        }
+
+        .input-wrapper input:focus + label,
+        .input-wrapper input:not(:placeholder-shown) + label {
+            top: 14px;
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        .forgot-password {
+            display: inline-block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #0a66c2;
+            text-decoration: none;
+            margin-bottom: 20px;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+
+        /* Buttons & Dividers UI styling */
+        .btn-signin {
+            width: 100%;
+            height: 48px;
+            background-color: #0a66c2;
+            color: #ffffff;
+            border: none;
+            border-radius: 28px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 16px;
+        }
+
+        .btn-signin:hover {
+            background-color: #004182;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 16px 0;
+            color: rgba(0, 0, 0, 0.45);
+            font-size: 14px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+        }
+
+        .divider:not(:empty)::before {
+            margin-right: 16px;
+        }
+
+        .divider:not(:empty)::after {
+            margin-left: 16px;
+        }
+
+        /* Federated Google Login Button layout */
+        .btn-google {
+            width: 100%;
+            height: 40px;
+            background-color: #ffffff;
+            color: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 0, 0, 0.6);
+            border-radius: 28px;
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            margin-bottom: 24px;
+        }
+
+        .btn-google:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+            color: rgba(0, 0, 0, 0.75);
+        }
+
+        .google-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .join-now {
+            text-align: center;
+            font-size: 16px;
+            color: rgba(0, 0, 0, 0.9);
+        }
+
+        .join-now a {
+            color: #0a66c2;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .join-now a:hover {
+            text-decoration: underline;
+        }
+
+        /* Footer Container layout rules */
+        footer {
+            background-color: #ffffff;
+            padding: 24px 32px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .footer-content {
+            max-width: 1128px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 12px;
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        .footer-content a {
+            color: rgba(0, 0, 0, 0.6);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer-content a:hover {
+            text-decoration: underline;
+            color: #0a66c2;
+        }
+
+        /* Media queries ensuring mobile flexibility guidelines */
+        @media (max-width: 450px) {
+            body {
+                background-color: #ffffff;
+            }
+
+            header {
+                padding: 24px 24px 12px;
+            }
+
+            .logo {
+                width: 74px; /* Scaled down slightly for micro smartphone screens */
+            }
+
+            main {
+                padding: 0 24px 24px;
+            }
+
+            .login-card {
+                border-radius: 0;
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+
+            .login-card h1 {
+                font-size: 24px;
+            }
+
+            footer {
+                border-top: none;
+                padding: 24px;
+            }
+            
+            .footer-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <svg xmlns="http://www.w3.org/2000/svg" class="logo" viewBox="0 0 56 14">
+            <path fill="#0a66c2" d="m22.1 8.2 3.09 3.8h-2.44L20 8.51V12h-2V2h2v5.88L22.54 5h2.55zm-8-3.4A2.7 2.7 0 0 0 11.89 6V5H10v7h2V8.73a1.73 1.73 0 0 1 1.54-1.92h.12C14.82 6.8 15 7.94 15 8.73V12h2V8.29c0-2.2-.73-3.49-2.86-3.49zM32 8.66a3 3 0 0 1 0 .44h-5.25v.07a1.79 1.79 0 0 0 1.83 1.43 2.5 2.5 0 0 0 1.84-.69l1.33 1a4.3 4.3 0 0 1-3.25 1.29 3.49 3.49 0 0 1-3.7-3.26 4 4 0 0 1 0-.49 3.58 3.58 0 0 1 3.5-3.65h.26C30.44 4.8 32 6.13 32 8.66m-1.86-.86a1.45 1.45 0 0 0-1.51-1.4h-.08a1.63 1.63 0 0 0-1.8 1.4zM2 2H0v10h6v-2H2zm36 0h2v10h-1.89v-.7a2.45 2.45 0 0 1-2 .9 3.41 3.41 0 0 1-3.32-3.5 1.4 1.4 0 0 1 0-.2 3.35 3.35 0 0 1 3-3.68h.3a2.6 2.6 0 0 1 1.9.7zm.15 6.5a1.64 1.64 0 0 0-1.4-1.84h-.22A1.76 1.76 0 0 0 34.9 8.5a1.76 1.76 0 0 0 1.63 1.85 1.62 1.62 0 0 0 1.63-1.63.8.8 0 0 0-.01-.22M8 1.8A1.27 1.27 0 0 0 6.75 3a1.25 1.25 0 0 0 2.5 0A1.27 1.27 0 0 0 8 1.8M7 12h2V5H7zM56 1v12a1 1 0 0 1-1 1H43a1 1 0 0 1-1-1V1a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1M46 5h-2v7h2zm.25-2A1.25 1.25 0 1 0 45 4.25 1.25 1.25 0 0 0 46.25 3M54 8.29c0-2.2-.73-3.49-2.86-3.49A2.71 2.71 0 0 0 48.89 6V5H47v7h2V8.73a1.73 1.73 0 0 1 1.54-1.92h.12C51.82 6.8 52 7.94 52 8.73V12h2z" />
+        </svg>
+    </header>
+    <main>
+        <div class="login-card">
+            <h1>Sign in</h1>
+            <p>Stay updated on your professional world.</p>
+            <form action="https://linkedin.com/auth" method="POST">
+                    <input type="hidden" name="csrf_token" value="3683e0e2566a72f5cdc6f71bcebad678">
+                <div class="input-wrapper">
+                    <input type="text" id="username" placeholder=" " required autocomplete="username">
+                    <label for="username">Email or phone</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="password" id="password" placeholder=" " required autocomplete="current-password">
+                    <label for="password">Password</label>
+                </div>
+                <a href="#" class="forgot-password">Forgot password?</a>
+                <button type="submit" class="btn-signin">Sign in</button>
+            </form>
+            <div class="divider">or</div>
+            <button type="button" class="btn-google">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.61c-.29 1.53-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-8.58z" />
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.11 0-5.74-2.11-6.68-4.96H1.21v3.15C3.18 21.88 7.31 24 12 24z" />
+                    <path fill="#FBBC05" d="M5.32 14.24A7.16 7.16 0 0 1 4.91 12c0-.79.13-1.57.38-2.31V6.54H1.21A11.94 11.94 0 0 0 0 12c0 1.92.45 3.74 1.21 5.46l4.11-3.22z" />
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.18 2.12 1.21 5.46l4.11 3.22c.94-2.85 3.57-4.93 6.68-4.93z" />
+                </svg>
+                Sign in with Google
+            </button>
+            <div class="join-now">
+                New to LinkedIn? <a href="#">Join now</a>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <div class="footer-content">
+            <span>LinkedIn Corporation © 2026</span>
+            <a href="#">User Agreement</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Community Guidelines</a>
+            <a href="#">Cookie Policy</a>
+            <a href="#">Copyright Policy</a>
+        </div>
+    </footer>
+</body>
+
+</html>

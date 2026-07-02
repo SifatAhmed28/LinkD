@@ -1,0 +1,54 @@
+# Phishing Dataset Generator Configuration
+# Uses real brand login page HTML templates from templates/brands/
+
+seed: 42
+
+# --- Dataset Size ---
+sizes:
+  phishing: 500
+  legitimate: 500
+
+# --- 3rd-Party Hosting Platforms ---
+platforms:
+  - name: github_io
+    domain: github.io
+    weight: 0.25
+  - name: netlify_app
+    domain: netlify.app
+    weight: 0.20
+  - name: vercel_app
+    domain: vercel.app
+    weight: 0.20
+  - name: firebase_app
+    domain: firebaseapp.com
+    weight: 0.20
+  - name: pages_dev
+    domain: pages.dev
+    weight: 0.15
+
+# --- Brands to use ---
+# Keys must match entries in templates/brands_meta.yaml
+# Generator skips brands that don't have a matching HTML template file.
+brands:
+  - google
+  - microsoft
+  - paypal
+  - apple
+  - facebook
+  - amazon
+  - instagram
+  - linkedin
+  - netflix
+  - twitter
+
+# --- Generation Parameters ---
+generation:
+  # Hidden fields injected into phishing pages: [min, max]
+  hidden_fields_phishing: [1, 4]
+
+# --- Output ---
+output:
+  dir: dataset
+  phishing_subdir: phishing
+  legitimate_subdir: legitimate
+  metadata_file: dataset_meta.csv
