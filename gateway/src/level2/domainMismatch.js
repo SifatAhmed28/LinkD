@@ -27,14 +27,43 @@ const BRAND_DOMAIN_MAP = {
 };
 
 /**
+ * Infers which brand a page is impersonating from its visible text and title.
+ * Checks against BRAND_DOMAIN_MAP keys for any brand-name mention.
+ *
+ * @param {string} visibleText - Page body text
+ * @param {string} title       - Page <title> content
+ * @param {string} pageHostname - The hostname being scanned
+ * @returns {{ inferred_brand: string|null, brand_domain_match: boolean|null }}
+ */
+function inferBrandFromPage(visibleText, title, pageHostname) {
+  const searchText = `${title} ${visibleText}`.toLowerCase();
+  const brands = Object.keys(BRAND_DOMAIN_MAP);
+
+  for (const brand of brands) {
+    if (searchText.includes(brand)) {
+      const canonicalDomain = BRAND_DOMAIN_MAP[brand];
+      // brand_domain_match: true if the actual page domain IS the brand's domain
+      const brandDomainMatch = pageHostname === canonicalDomain ||
+        pageHostname.endsWith('.' + canonicalDomain);
+      return { inferred_brand: brand, brand_domain_match: brandDomainMatch };
+    }
+  }
+
+  return { inferred_brand: null, brand_domain_match: null };
+}
+
+/**
  * Analyzes anchor tags for brand name vs. href domain mismatches.
- * A mismatch means an anchor displays a brand name but points elsewhere.
+ * Also infers the brand the page is impersonating from visible text and title.
  *
  * @param {Array<{href: string, text: string}>} anchors
  * @param {string} pageHostname - The hostname of the page being scanned
- * @returns {{ mismatchFound: boolean, mismatchScore: number, mismatches: Array }}
+ * @param {string} [visibleText=''] - Page visible text (for brand inference)
+ * @param {string} [title='']       - Page title (for brand inference)
+ * @returns {{ mismatchFound: boolean, mismatchScore: number, mismatches: Array,
+ *             inferred_brand: string|null, brand_domain_match: boolean|null }}
  */
-function detectDomainMismatch(anchors, pageHostname) {
+function detectDomainMismatch(anchors, pageHostname, visibleText = '', title = '') {
   const mismatches = [];
 
   for (const { href, text } of anchors) {
@@ -77,11 +106,16 @@ function detectDomainMismatch(anchors, pageHostname) {
 
   const mismatchScore = Math.min(mismatches.length * 0.3, 1.0);
 
+  // Page-level brand inference from visible text + title
+  const brandInference = inferBrandFromPage(visibleText, title, pageHostname);
+
   return {
     mismatchFound: mismatches.length > 0,
     mismatchScore: parseFloat(mismatchScore.toFixed(3)),
     mismatches: mismatches.slice(0, 10), // Cap at 10 for response size
+    inferred_brand:    brandInference.inferred_brand,
+    brand_domain_match: brandInference.brand_domain_match,
   };
 }
 
-module.exports = { detectDomainMismatch };
+module.exports = { detectDomainMismatch, inferBrandFromPage };

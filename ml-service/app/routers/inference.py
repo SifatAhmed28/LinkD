@@ -42,6 +42,7 @@ class AnalyzeRequest(BaseModel):
     forms: Optional[List[FormData]] = []
     l2_score: Optional[float] = 0.0
     l2_breakdown: Optional[Dict[str, Any]] = {}
+    l2_features: Optional[Dict[str, Any]] = {}  # Structured L2 feature vector (Phase 1)
 
     @field_validator("url")
     @classmethod
@@ -49,6 +50,7 @@ class AnalyzeRequest(BaseModel):
         if not v.startswith(("http://", "https://")):
             raise ValueError("URL must start with http:// or https://")
         return v
+
 
 
 class AnalyzeResponse(BaseModel):
@@ -68,6 +70,11 @@ async def analyze(request: AnalyzeRequest):
     logger.info(f"L3 analysis started for: {request.url}")
 
     breakdown = {}
+
+    # Store the L2 structured feature vector in breakdown for logging / future fusion use
+    if request.l2_features:
+        breakdown["l2_features"] = request.l2_features
+        logger.info(f"L2 feature vector received: {len(request.l2_features)} features")
 
     # ── 1. Screenshot Capture ─────────────────────────────────────────────
     screenshot_path = None

@@ -1,6 +1,7 @@
 const Redis = require('ioredis');
 const { LRUCache } = require('lru-cache');
 const logger = require('../utils/logger');
+const { FEATURE_SCHEMA_VERSION } = require('../config/feature_schema');
 
 // ─── Redis Client ─────────────────────────────────────────────────────────────
 let redisClient = null;
@@ -54,11 +55,24 @@ function cacheKey(url) {
 async function getCachedResult(url) {
   const key = cacheKey(url);
   try {
+    let entry;
     if (useRedis) {
       const raw = await redisClient.get(key);
-      return raw ? JSON.parse(raw) : null;
+      entry = raw ? JSON.parse(raw) : null;
+    } else {
+      entry = memCache.get(key) || null;
     }
-    return memCache.get(key) || null;
+
+    if (!entry) return null;
+
+    // Invalidate stale feature schema — forces a fresh scan so L3 never
+    // receives a feature vector with a different shape than the current schema.
+    if (entry.cache_version !== FEATURE_SCHEMA_VERSION) {
+      logger.info(`♻️  Cache schema version mismatch (stored=${entry.cache_version}, current=${FEATURE_SCHEMA_VERSION}) — invalidating: ${url}`);
+      return null;
+    }
+
+    return entry;
   } catch (err) {
     logger.warn(`Cache read error: ${err.message}`);
     return null;
@@ -68,7 +82,9 @@ async function getCachedResult(url) {
 /**
  * Store a scan result in cache.
  * @param {string} url
- * @param {Object} result - { verdict, score, html_hash, breakdown, timestamp }
+ * @param {Object} result - { verdict, score, html_hash, breakdown, features, timestamp }
+ *                          `features` is the full L2 feature vector; stored so it can
+ *                          be re-scored when weights/models change without re-fetching HTML.
  */
 async function setCachedResult(url, result) {
   const key = cacheKey(url);
@@ -76,11 +92,14 @@ async function setCachedResult(url, result) {
     ? parseInt(process.env.REDIS_TTL_MALICIOUS || '259200')
     : parseInt(process.env.REDIS_TTL_SAFE || '86400');
 
+  // Stamp the current schema version so stale entries are auto-invalidated
+  const payload = { ...result, cache_version: FEATURE_SCHEMA_VERSION };
+
   try {
     if (useRedis) {
-      await redisClient.setex(key, ttlSeconds, JSON.stringify(result));
+      await redisClient.setex(key, ttlSeconds, JSON.stringify(payload));
     } else {
-      memCache.set(key, result, { ttl: ttlSeconds * 1000 });
+      memCache.set(key, payload, { ttl: ttlSeconds * 1000 });
     }
   } catch (err) {
     logger.warn(`Cache write error: ${err.message}`);

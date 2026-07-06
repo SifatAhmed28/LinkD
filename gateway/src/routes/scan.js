@@ -7,7 +7,8 @@ const { aggregateScore } = require('../utils/scorer');
 const logger = require('../utils/logger');
 
 // Level 1
-const { isWhitelisted } = require('../level1/staticWhitelist');
+const { trustScore } = require('../level1/staticWhitelist');
+const { isBlocklisted, getBlocklistInfo } = require('../level1/blocklist');
 const { getCachedResult, setCachedResult, invalidateCache } = require('../level1/redisCache');
 const { computeContentHash, verifyContentHash } = require('../level1/contentHash');
 
@@ -17,6 +18,8 @@ const { detectPatterns } = require('../level2/patternDetector');
 const { detectDomainMismatch } = require('../level2/domainMismatch');
 const { detectObfuscation } = require('../level2/urlObfuscation');
 const { analyzeGitHubContext } = require('../level2/githubContext');
+const { getDomainRankFeatures } = require('../level2/domainRankFeatures');
+const { getWhoisFeatures } = require('../level2/whoisFeatures');
 
 const router = express.Router();
 
@@ -53,11 +56,26 @@ router.post('/scan', async (req, res) => {
   logger.info(`Scanning: ${url}`);
 
   // ════════════════════════════════════════════════════════════════════════
-  //  LEVEL 1 — Static Whitelist Check
+  //  LEVEL 1 — Static Whitelist Check (trust-score gating)
   // ════════════════════════════════════════════════════════════════════════
-  if (isWhitelisted(hostname, registeredDomain)) {
+  const whitelistResult = trustScore(hostname, registeredDomain);
+  if (whitelistResult.fastPath) {
     logger.info(`✅ L1 Whitelist HIT: ${url}`);
     return res.json(buildResponse(url, 'SAFE', 0.0, 1.0, 'L1_WHITELIST', {}, true, startTime));
+  }
+  // Partial match: continues to L2 but carries the flag into the feature vector
+  const whitelistPartialMatch = whitelistResult.whitelistPartialMatch;
+  if (whitelistPartialMatch) {
+    logger.info(`⚠️  Whitelist partial match (subdomain spoofing risk) — sending to L2: ${url}`);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  LEVEL 1 — Phishing Blocklist Fast-Path
+  // ════════════════════════════════════════════════════════════════════════
+  if (isBlocklisted(url)) {
+    logger.info(`🚫 L1 Blocklist HIT: ${url}`);
+    return res.json(buildResponse(url, 'MALICIOUS', 1.0, 1.0, 'L1_BLOCKLIST',
+      { blocklist: true }, false, startTime));
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -77,8 +95,27 @@ router.post('/scan', async (req, res) => {
       } else {
         return res.json(buildResponse(url, cached.verdict, cached.score, cached.confidence, cached.level_caught, cached.breakdown, true, startTime));
       }
+    } else if (cached.verdict === 'MALICIOUS' && cached.html_hash) {
+      // MALICIOUS re-verification: once per day (configurable) to catch pages that
+      // scrub their content to slip through repeat scans, or were legitimately fixed.
+      const reverifyInterval = parseInt(process.env.MALICIOUS_REVERIFY_INTERVAL_MS || String(24 * 60 * 60 * 1000));
+      const ageMs = Date.now() - (cached.timestamp ? new Date(cached.timestamp).getTime() : 0);
+      if (ageMs > reverifyInterval) {
+        logger.info(`🔁 MALICIOUS re-verify triggered (age ${Math.round(ageMs / 3600000)}h): ${url}`);
+        const hashMatch = await verifyContentHash(url, cached.html_hash);
+        if (!hashMatch) {
+          // Content changed — force full re-scan, do NOT auto-flip to SAFE
+          logger.info(`⚠️  MALICIOUS page content changed — full re-scan: ${url}`);
+          await invalidateCache(url);
+          // Fall through to Level 2
+        } else {
+          return res.json(buildResponse(url, cached.verdict, cached.score, cached.confidence, cached.level_caught, cached.breakdown, true, startTime));
+        }
+      } else {
+        return res.json(buildResponse(url, cached.verdict, cached.score, cached.confidence, cached.level_caught, cached.breakdown, true, startTime));
+      }
     } else if (cached.verdict !== 'SAFE') {
-      // Malicious/Suspicious cached results served directly (no hash check needed)
+      // Suspicious cached results served directly
       return res.json(buildResponse(url, cached.verdict, cached.score, cached.confidence, cached.level_caught, cached.breakdown, true, startTime));
     }
   }
@@ -120,12 +157,23 @@ router.post('/scan', async (req, res) => {
         .digest('hex')
     : null;
 
-  // Run Level 2 analyzers
+  // Run Level 2 analyzers (concurrent where possible)
   const [patternResult, mismatchResult, obfuscationResult, githubResult] = await Promise.all([
     Promise.resolve(detectPatterns(parsedHtml.visibleText)),
-    Promise.resolve(detectDomainMismatch(parsedHtml.anchors, hostname)),
+    Promise.resolve(detectDomainMismatch(
+      parsedHtml.anchors,
+      hostname,
+      parsedHtml.visibleText,  // for page-level brand inference
+      parsedHtml.title,
+    )),
     Promise.resolve(detectObfuscation(url, parsedUrl)),
     analyzeGitHubContext(url, parsedHtml),
+  ]);
+
+  // Domain rank and WHOIS run concurrently with the above (both are I/O-bound)
+  const [rankFeatures, whoisFeatureResult] = await Promise.all([
+    Promise.resolve(getDomainRankFeatures(registeredDomain)),
+    getWhoisFeatures(registeredDomain, mismatchResult.inferred_brand),
   ]);
 
   // Form behavior signals
@@ -143,7 +191,30 @@ router.post('/scan', async (req, res) => {
     }
   }
 
-  // Aggregate signals
+  // Aggregate signals — pass structural URL + HTML fingerprint features as extraFeatures
+  // so scorer.js can embed them in the structured feature vector.
+  const extraFeatures = {
+    ...obfuscationResult.structuralFeatures,
+    html_num_eval_calls:           parsedHtml.html_num_eval_calls,
+    html_num_unescape_calls:       parsedHtml.html_num_unescape_calls,
+    html_has_right_click_disabled: parsedHtml.html_has_right_click_disabled,
+    sfh_is_empty:                  parsedHtml.sfh_is_empty,
+    sfh_is_about_blank:            parsedHtml.sfh_is_about_blank,
+    html_has_favicon:              parsedHtml.html_has_favicon,
+    html_num_hidden_inputs:        parsedHtml.html_num_hidden_inputs,
+    fearDetected:                  patternResult.fearDetected,
+    credentialDetected:            patternResult.credentialDetected,
+    // Brand inference from domainMismatch.js
+    inferred_brand:                mismatchResult.inferred_brand,
+    brand_domain_match:            mismatchResult.brand_domain_match,
+    // Whitelist partial-match flag (Phase 3)
+    whitelistPartialMatch:         whitelistPartialMatch,
+    // Tranco rank features (Phase 2)
+    ...rankFeatures,
+    // WHOIS features (Phase 2)
+    ...whoisFeatureResult,
+  };
+
   const signals = {
     urgencyKeyword: patternResult.urgencyScore,
     domainMismatch: mismatchResult.mismatchScore,
@@ -158,7 +229,7 @@ router.post('/scan', async (req, res) => {
     fetchFailed, // Unreachable or error-returning pages are themselves suspicious
   };
 
-  const { score, verdict, breakdown } = aggregateScore(signals);
+  const { score, verdict, breakdown, features } = aggregateScore(signals, extraFeatures);
 
   const level2Breakdown = {
     ...breakdown,
@@ -174,7 +245,7 @@ router.post('/scan', async (req, res) => {
   // ── Short-circuit if L2 is definitive ────────────────────────────────────
   if (verdict !== 'SUSPICIOUS') {
     const result = buildResponse(url, verdict, score, null, 'L2_HEURISTICS', level2Breakdown, false, startTime);
-    await setCachedResult(url, { ...result, html_hash: htmlHash });
+    await setCachedResult(url, { ...result, html_hash: htmlHash, features });
     return res.json(result);
   }
 
@@ -193,6 +264,7 @@ router.post('/scan', async (req, res) => {
         forms: parsedHtml.forms,
         l2_score: score,
         l2_breakdown: level2Breakdown,
+        l2_features: features,           // ← structured feature vector for L3 fusion
       },
       { timeout: 30000 }
     );
@@ -206,7 +278,7 @@ router.post('/scan', async (req, res) => {
     result.screenshot_url = mlData.screenshot_url || null;
     result.ocr_text = mlData.ocr_text || null;
 
-    await setCachedResult(url, { ...result, html_hash: htmlHash });
+    await setCachedResult(url, { ...result, html_hash: htmlHash, features });
     return res.json(result);
 
   } catch (mlErr) {

@@ -62,6 +62,38 @@ function parseHtml(html) {
   const title = $('title').text().trim();
   const metaDescription = $('meta[name="description"]').attr('content') || '';
 
+  // ── Phishing-Kit Fingerprints ─────────────────────────────────
+  // Collect all inline script content for obfuscation checks
+  const inlineScripts = [];
+  // Re-load html to grab script content (already removed from DOM above for text extraction)
+  const $2 = require('cheerio').load(html);
+  $2('script:not([src])').each((_, el) => {
+    inlineScripts.push($2(el).html() || '');
+  });
+  const allScriptText = inlineScripts.join('\n');
+
+  const htmlNumEvalCalls = (allScriptText.match(/\beval\s*\(/g) || []).length;
+  const htmlNumUnescapeCalls = (allScriptText.match(/\b(?:unescape|decodeURIComponent)\s*\(/g) || []).length;
+
+  // Right-click disabled (common anti-inspection kit behavior)
+  const htmlHasRightClickDisabled =
+    /oncontextmenu\s*=\s*["'][^"']*return\s+false/i.test(html) ||
+    allScriptText.includes('oncontextmenu') && /return\s+false/i.test(allScriptText);
+
+  // Form action pointing nowhere or to blank page
+  let sfhIsEmpty = false;
+  let sfhIsAboutBlank = false;
+  for (const form of forms) {
+    if (!form.action || form.action.trim() === '' || form.action.trim() === '#') sfhIsEmpty = true;
+    if (form.action.trim().toLowerCase() === 'about:blank') sfhIsAboutBlank = true;
+  }
+
+  // Favicon presence (legitimate sites almost always have one)
+  const htmlHasFavicon = $2('link[rel~="icon"], link[rel="shortcut icon"]').length > 0;
+
+  // Hidden input count (exfiltration via hidden fields)
+  const htmlNumHiddenInputs = $2('input[type="hidden"]').length;
+
   return {
     anchors,
     forms,
@@ -72,6 +104,14 @@ function parseHtml(html) {
     metaDescription,
     hasPasswordInput: passwordInputs.length > 0,
     hasForm: forms.length > 0,
+    // Phishing-kit fingerprints
+    html_num_eval_calls:          htmlNumEvalCalls,
+    html_num_unescape_calls:      htmlNumUnescapeCalls,
+    html_has_right_click_disabled: htmlHasRightClickDisabled,
+    sfh_is_empty:                 sfhIsEmpty,
+    sfh_is_about_blank:           sfhIsAboutBlank,
+    html_has_favicon:             htmlHasFavicon,
+    html_num_hidden_inputs:       htmlNumHiddenInputs,
   };
 }
 

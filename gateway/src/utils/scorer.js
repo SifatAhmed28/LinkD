@@ -1,5 +1,6 @@
 /**
- * Aggregates Level 2 heuristic signals into a single threat score (0.0 – 1.0).
+ * Aggregates Level 2 heuristic signals into a single threat score (0.0 – 1.0)
+ * AND a structured feature vector for consumption by L3 and the cache.
  *
  * Signal weights are tuned to match empirical phishing datasets.
  * The final score is used to decide whether to escalate to Level 3 ML inference.
@@ -25,10 +26,13 @@ const WEIGHTS = {
 };
 
 /**
- * @param {Object} signals - Map of signal names to boolean or float (0-1)
- * @returns {{ score: number, breakdown: Object, verdict: string }}
+ * @param {Object} signals      - Map of signal names to boolean or float (0-1)
+ * @param {Object} extraFeatures - Additional structured features to include in the
+ *                                 feature vector (URL structural, HTML kit fingerprints,
+ *                                 WHOIS, rank — passed through verbatim, not weighted).
+ * @returns {{ legacyScore: number, score: number, breakdown: Object, verdict: string, features: Object }}
  */
-function aggregateScore(signals) {
+function aggregateScore(signals, extraFeatures = {}) {
   let totalScore = 0;
   const breakdown = {};
 
@@ -50,7 +54,35 @@ function aggregateScore(signals) {
   else if (score >= maliciousThreshold) verdict = 'MALICIOUS';
   else verdict = 'SUSPICIOUS';
 
-  return { score, verdict, breakdown };
+  // ── Structured feature vector ────────────────────────────────────────────────
+  // Combines the scorer's input signals (normalised to 0/1 floats) with any extra
+  // features passed in from URL/HTML/WHOIS/rank modules. This vector is:
+  //   • stored in the Redis cache (for version-stable re-scoring)
+  //   • forwarded to L3's /analyze endpoint as l2_features
+  const features = {
+    // Core heuristic signals (normalised)
+    urgencyScore:         typeof signals.urgencyKeyword === 'number' ? signals.urgencyKeyword : (signals.urgencyKeyword ? 1 : 0),
+    domainMismatch:       typeof signals.domainMismatch === 'number' ? signals.domainMismatch : (signals.domainMismatch ? 1 : 0),
+    urlObfuscation:       typeof signals.urlObfuscation === 'number' ? signals.urlObfuscation : (signals.urlObfuscation ? 1 : 0),
+    formPassword:         signals.formPasswordField ? 1 : 0,
+    crossOriginForm:      signals.crossOriginForm ? 1 : 0,
+    httpsDowngrade:       signals.httpsDowngrade ? 1 : 0,
+    githubNewRepo:        signals.githubNewRepo ? 1 : 0,
+    githubFewCommits:     signals.githubFewCommits ? 1 : 0,
+    githubPasswordInReadme: signals.githubPasswordInReadme ? 1 : 0,
+    ipBasedUrl:           signals.ipBasedUrl ? 1 : 0,
+    fetchFailed:          signals.fetchFailed ? 1 : 0,
+    // Extra features passed verbatim (structural URL, HTML kit fingerprints, etc.)
+    ...extraFeatures,
+  };
+
+  return {
+    legacyScore: score,
+    score,          // alias — keeps scan.js destructuring unchanged
+    verdict,
+    breakdown,
+    features,
+  };
 }
 
 module.exports = { aggregateScore, WEIGHTS };

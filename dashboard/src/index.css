@@ -560,16 +560,33 @@ body::before {
   margin-bottom: 12px;
 }
 .timeline-content:hover { background: var(--bg-glass-hover); border-color: var(--border-hover); }
+.timeline-content.expanded { border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.04); }
 .timeline-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
+.timeline-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.timeline-icon {
+  margin-right: 6px;
+  font-size: 15px;
+}
+.timeline-chevron {
+  font-size: 9px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
 .timeline-level {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
 }
 .timeline-badge {
   font-size: 11px;
@@ -596,6 +613,91 @@ body::before {
   background: rgba(239, 68, 68, 0.1);
   color: #fca5a5;
   border: 1px solid rgba(239,68,68,0.2);
+}
+
+/* ── Feature Checklist (expanded timeline) ──────────────────────────────── */
+.timeline-features {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  animation: fadeDown 0.25s ease;
+}
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.feature-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.feature-row:hover { background: rgba(255,255,255,0.03); }
+.feature-row.ok  { }
+.feature-row.bad { background: rgba(239,68,68,0.04); }
+.feature-row.neutral { }
+
+.feature-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.feature-row.ok   .feature-icon { background: rgba(16,185,129,0.15); color: var(--safe); }
+.feature-row.bad  .feature-icon { background: rgba(239,68,68,0.15);  color: var(--malicious); }
+.feature-row.neutral .feature-icon { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+.feature-body { flex: 1; min-width: 0; }
+.feature-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.feature-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.feature-value {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+.feature-value.ok  { color: var(--safe);      background: rgba(16,185,129,0.12); }
+.feature-value.bad { color: var(--malicious); background: rgba(239,68,68,0.12); }
+.feature-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.feature-note {
+  font-size: 11px;
+  color: var(--suspicious);
+  margin-top: 2px;
+  font-style: italic;
 }
 
 /* ── Visual Preview ──────────────────────────────────────────────────────── */
