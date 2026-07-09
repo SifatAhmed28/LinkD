@@ -48,7 +48,9 @@ const STATUS_ICON = { pass: '✓', catch: '✗', warning: '!', skip: '–' };
 
 // ── Sub-feature builders for each level ──────────────────────────────────────
 function buildL1WhitelistFeatures(result) {
-    const f = result?.breakdown?.ml?.l2_features || {};
+    // L2 features live inside breakdown.ml.l2_features (populated by L3 path),
+    // or directly in breakdown for L2-caught scans
+    const f = result?.breakdown?.ml?.l2_features || result?.breakdown?.l2_features || {};
     return [{
             label: 'Exact domain whitelist match',
             ok: result?.level_caught === 'L1_WHITELIST' && result?.verdict === 'SAFE' && !f.whitelistPartialMatch,
@@ -70,7 +72,7 @@ function buildL1WhitelistFeatures(result) {
 }
 
 function buildL1CacheFeatures(result) {
-    const cached = result ?.cached;
+    const cached = result?.cached;
     return [{
             label: 'Redis/LRU cache hit',
             ok: cached,
@@ -169,7 +171,8 @@ const RISK_FLAGS = {
 };
 
 function buildL2Features(result) {
-    const f = result?.breakdown?.ml?.l2_features;
+    // features are in breakdown.ml.l2_features (L3 path) or breakdown.l2_features (L2 path)
+    const f = result?.breakdown?.ml?.l2_features || result?.breakdown?.l2_features;
     if (!f) return [];
     return Object.entries(L2_FEATURE_LABELS).map(([key, meta]) => {
         const val = f[key];
@@ -193,7 +196,6 @@ function buildL3Features(result) {
     const items = [];
 
     // Fear / sentiment
-    const fearScore = ml.sentiment?.fear_score??ml.l2_features?.fearDetected ? 1 : 0;
     items.push({
         label: 'Sentiment fear score',
         desc: 'RoBERTa model: urgency / threat language',
@@ -220,7 +222,7 @@ function buildL3Features(result) {
     items.push({
         label: 'OCR text analysis',
         desc: 'EasyOCR text extracted from screenshot',
-        display: ocr?.text?.length? `${ocr.text.length} chars` : (ocr?.error? 'N/A' : '—'),
+        display: result?.ocr_text?.length ? `${result.ocr_text.length} chars` : (ocr?.error ? 'N/A' : '—'),
         ok: !ocr?.flags?.length,
         bad: ocr?.flags?.length > 0,
         neutral: !ocr || !!ocr.error,
@@ -232,10 +234,10 @@ function buildL3Features(result) {
     items.push({
         label: 'Visual brand similarity',
         desc: 'ResNet-50 cosine similarity vs brand screenshots',
-        display: vis?.score !== undefined ? vis.score.toFixed(3) : '—',
-        ok: (vis?.score?? 0) < 0.82,
-        bad: (vis?.score?? 0) >= 0.82,
-        neutral: !vis || vis.score === undefined,
+        display: vis?.visual_score !== undefined ? vis.visual_score.toFixed(3) : (vis?.best_similarity !== undefined ? `${vis.best_similarity.toFixed(3)} (no spoof)` : '—'),
+        ok: (vis?.visual_score ?? 0) < 0.82,
+        bad: (vis?.visual_score ?? 0) >= 0.82,
+        neutral: !vis || vis.visual_score === undefined,
         note: vis?.error || undefined,
     });
 
@@ -250,9 +252,10 @@ function buildL3Features(result) {
         label: 'L3 signals fired',
         desc: 'Number of L3 detectors that returned a non-zero score',
         display: fusion.l3_signals_fired !== undefined ? String(fusion.l3_signals_fired) : '—',
-        ok: (fusion.l3_signals_fired?? 0) === 0,
-        bad: (fusion.l3_signals_fired?? 0) >= 2,
-        neutral: (fusion.l3_signals_fired?? 0) === 1,
+        // 0 = ML analysis skipped/failed (neutral), ≥1 = ML ran (ok), high count = more evidence
+        ok: (fusion.l3_signals_fired ?? 0) >= 1,
+        bad: false,
+        neutral: fusion.l3_signals_fired === undefined || fusion.l3_signals_fired === 0,
     });
 
     return items;

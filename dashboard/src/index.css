@@ -640,9 +640,7 @@ body::before {
   transition: background 0.15s;
 }
 .feature-row:hover { background: rgba(255,255,255,0.03); }
-.feature-row.ok  { }
 .feature-row.bad { background: rgba(239,68,68,0.04); }
-.feature-row.neutral { }
 
 .feature-icon {
   width: 20px;
@@ -834,4 +832,49 @@ body::before {
 @media (max-width: 480px) {
   .stats-banner { grid-template-columns: 1fr 1fr; }
   .breakdown-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Suggestion Chips (ScanInput example URLs) ─────────────────────────────── */
+.suggestion-chip {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  color: var(--accent-cyan);
+  font-size: 11px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: border-color 0.2s, background 0.2s;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggestion-chip:hover {
+  border-color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.08);
+}
+
+/* ── Loading Card ──────────────────────────────────────────────────────────── */
+.loading-card {
+  padding: 32px;
+  text-align: center;
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+.loading-primary {
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+.loading-secondary {
+  color: var(--text-muted);
+  font-size: 13px;
 }

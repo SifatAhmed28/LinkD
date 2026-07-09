@@ -30,7 +30,7 @@ const WEIGHTS = {
  * @param {Object} extraFeatures - Additional structured features to include in the
  *                                 feature vector (URL structural, HTML kit fingerprints,
  *                                 WHOIS, rank — passed through verbatim, not weighted).
- * @returns {{ legacyScore: number, score: number, breakdown: Object, verdict: string, features: Object }}
+ * @returns {{ score: number, breakdown: Object, verdict: string, features: Object }}
  */
 function aggregateScore(signals, extraFeatures = {}) {
   let totalScore = 0;
@@ -77,8 +77,7 @@ function aggregateScore(signals, extraFeatures = {}) {
   };
 
   return {
-    legacyScore: score,
-    score,          // alias — keeps scan.js destructuring unchanged
+    score,
     verdict,
     breakdown,
     features,

@@ -22,39 +22,26 @@
  * @module whoisFeatures
  */
 
+const whois = require('whois');
 const logger = require('../utils/logger');
 
-// ── Redis cache (shared with main scan cache, different key prefix) ────────────
-// We import the raw Redis client via a lightweight accessor rather than re-wiring
-// the full redisCache module (which has its own TTL and versioning logic).
-let _redisClient = null;
 const _memCache = new Map();          // in-memory fallback for WHOIS-specific cache
 const WHOIS_TTL_MS = 24 * 60 * 60 * 1000;  // 24 h
 
-function setWhoisRedis(client) { _redisClient = client; }
+// ── In-memory WHOIS cache (24-hour TTL) ──────────────────────────────────────
+// WHOIS data changes very slowly. A per-domain Map TTL is sufficient —
+// no need for Redis for this auxiliary cache.
 
-async function _getCached(domain) {
+function _getCached(domain) {
   const key = `linkd:whois:${domain}`;
-  try {
-    if (_redisClient) {
-      const raw = await _redisClient.get(key);
-      return raw ? JSON.parse(raw) : null;
-    }
-  } catch { /* fall through to in-memory */ }
   const entry = _memCache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.ts > WHOIS_TTL_MS) { _memCache.delete(key); return null; }
   return entry.data;
 }
 
-async function _setCached(domain, data) {
+function _setCached(domain, data) {
   const key = `linkd:whois:${domain}`;
-  try {
-    if (_redisClient) {
-      await _redisClient.setex(key, 86400, JSON.stringify(data));
-      return;
-    }
-  } catch { /* fall through */ }
   _memCache.set(key, { ts: Date.now(), data });
 }
 
@@ -156,7 +143,7 @@ async function getWhoisFeatures(domain, inferredBrand = null) {
   if (!domain) return nullResult;
 
   // ── Check cache ─────────────────────────────────────────────────────────────
-  const cached = await _getCached(domain);
+  const cached = _getCached(domain);
   if (cached) {
     logger.debug(`WHOIS cache HIT: ${domain}`);
     return cached;
@@ -165,7 +152,6 @@ async function getWhoisFeatures(domain, inferredBrand = null) {
   // ── Perform WHOIS lookup ────────────────────────────────────────────────────
   let whoisRaw;
   try {
-    const whois = require('whois');
     whoisRaw = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('WHOIS timeout')), 5000);
       whois.lookup(domain, (err, data) => {
@@ -203,9 +189,9 @@ async function getWhoisFeatures(domain, inferredBrand = null) {
       : null,
   };
 
-  await _setCached(domain, features);
+  _setCached(domain, features);
   logger.info(`WHOIS features for ${domain}: age=${features.domain_age_days}d, registrar=${features.registrar_category}`);
   return features;
 }
 
-module.exports = { getWhoisFeatures, setWhoisRedis };
+module.exports = { getWhoisFeatures };

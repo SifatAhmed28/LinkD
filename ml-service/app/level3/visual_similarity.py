@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
+import numpy as np
+
 logger = logging.getLogger("linkd.visual_similarity")
 
 SIMILARITY_THRESHOLD = float(os.getenv("VISUAL_SIMILARITY_THRESHOLD", "0.82"))
@@ -113,9 +115,6 @@ class VisualSimilarityAnalyzer:
             except Exception as e:
                 logger.warning(f"Brand DB load error: {e}")
                 self._brand_db = []
-            except Exception as e:
-                logger.warning(f"Brand DB load error: {e}")
-                self._brand_db = []
         else:
             logger.warning(f"Brand DB not found at {BRAND_DB_PATH}. Visual similarity disabled.")
             self._brand_db = []
@@ -178,7 +177,6 @@ class VisualSimilarityAnalyzer:
             pass
 
         # ── Compare Against Brand DB ──────────────────────────────────────
-        import numpy as np
         best_similarity = 0.0
         best_brand = None
         similarities = []

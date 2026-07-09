@@ -59,11 +59,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Allow the gateway to reach us; reject all other origins in production.
+_allowed_origins = [
+    o.strip()
+    for o in os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allowed_origins,
+    allow_methods=["POST", "GET"],
+    allow_headers=["Content-Type"],
 )
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -71,7 +78,6 @@ app.include_router(inference_router)
 
 # ── Static files: serve captured screenshots ─────────────────────────────────
 _screenshot_dir = os.getenv("SCREENSHOT_DIR", "./screenshots")
-os.makedirs(_screenshot_dir, exist_ok=True)
 app.mount("/screenshots", StaticFiles(directory=_screenshot_dir), name="screenshots")
 
 
@@ -95,6 +101,6 @@ if __name__ == "__main__":
         "app.main:app",
         host="0.0.0.0",
         port=int(os.getenv("PORT", 8000)),
-        reload=os.getenv("NODE_ENV") != "production",
+        reload=os.getenv("UVICORN_RELOAD", "false").lower() == "true",
         log_level="info",
     )

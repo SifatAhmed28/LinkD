@@ -67,7 +67,7 @@ def analyze_form_behavior(
     soup = None
     if html:
         try:
-            soup = BeautifulSoup(html, "lxml")
+            soup = BeautifulSoup(html, "html.parser")
         except Exception:
             pass
 

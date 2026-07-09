@@ -12,7 +12,11 @@ const PORT = process.env.PORT || 3000;
 
 // ─── Security Middleware ────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*' }));
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    : '*',
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('combined', { stream: { write: (msg) => logger.info(msg.trim()) } }));
 

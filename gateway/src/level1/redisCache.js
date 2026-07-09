@@ -1,4 +1,5 @@
 const Redis = require('ioredis');
+const crypto = require('crypto');
 const { LRUCache } = require('lru-cache');
 const logger = require('../utils/logger');
 const { FEATURE_SCHEMA_VERSION } = require('../config/feature_schema');
@@ -43,7 +44,6 @@ const memCache = new LRUCache({
 
 // ─── Cache Key ────────────────────────────────────────────────────────────────
 function cacheKey(url) {
-  const crypto = require('crypto');
   return `linkd:scan:${crypto.createHash('sha256').update(url).digest('hex')}`;
 }
 

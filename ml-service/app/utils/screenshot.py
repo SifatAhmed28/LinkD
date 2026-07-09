@@ -93,6 +93,14 @@ async def capture_screenshot(url: str) -> Optional[str]:
             await browser.close()
 
         logger.info(f"Screenshot saved: {output_path}")
+
+        # Schedule cleanup of old screenshots (non-blocking, best-effort)
+        try:
+            import asyncio
+            asyncio.create_task(cleanup_old_screenshots())
+        except RuntimeError:
+            pass  # No running event loop in test contexts
+
         return str(output_path)
 
     except ImportError:

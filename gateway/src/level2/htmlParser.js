@@ -53,27 +53,25 @@ function parseHtml(html) {
     if (alt) imageAlts.push(alt);
   });
 
-  // ── Visible Text ──────────────────────────────────────────────
-  // Remove scripts, styles, comments
-  $('script, style, noscript').remove();
-  const visibleText = $('body').text().replace(/\s+/g, ' ').trim();
-
   // ── Meta ──────────────────────────────────────────────────────
   const title = $('title').text().trim();
   const metaDescription = $('meta[name="description"]').attr('content') || '';
 
-  // ── Phishing-Kit Fingerprints ─────────────────────────────────
-  // Collect all inline script content for obfuscation checks
+  // ── Phishing-Kit Fingerprints ────────────────────────────────────────
+  // Extract inline scripts BEFORE removing them from the DOM
   const inlineScripts = [];
-  // Re-load html to grab script content (already removed from DOM above for text extraction)
-  const $2 = require('cheerio').load(html);
-  $2('script:not([src])').each((_, el) => {
-    inlineScripts.push($2(el).html() || '');
+  $('script:not([src])').each((_, el) => {
+    inlineScripts.push($(el).html() || '');
   });
   const allScriptText = inlineScripts.join('\n');
 
   const htmlNumEvalCalls = (allScriptText.match(/\beval\s*\(/g) || []).length;
   const htmlNumUnescapeCalls = (allScriptText.match(/\b(?:unescape|decodeURIComponent)\s*\(/g) || []).length;
+
+  // ── Visible Text ───────────────────────────────────────────
+  // Strip scripts/styles to isolate user-facing text
+  $('script, style, noscript').remove();
+  const visibleText = $('body').text().replace(/\s+/g, ' ').trim();
 
   // Right-click disabled (common anti-inspection kit behavior)
   const htmlHasRightClickDisabled =
@@ -89,10 +87,10 @@ function parseHtml(html) {
   }
 
   // Favicon presence (legitimate sites almost always have one)
-  const htmlHasFavicon = $2('link[rel~="icon"], link[rel="shortcut icon"]').length > 0;
+  const htmlHasFavicon = $('link[rel~="icon"], link[rel="shortcut icon"]').length > 0;
 
   // Hidden input count (exfiltration via hidden fields)
-  const htmlNumHiddenInputs = $2('input[type="hidden"]').length;
+  const htmlNumHiddenInputs = $('input[type="hidden"]').length;
 
   return {
     anchors,

@@ -32,14 +32,14 @@ export default function ScanInput({ onScan, isLoading }) {
             ref={inputRef}
             id="url-input"
             className="scan-input"
-            type="url"
-            placeholder="Enter a URL to analyze (e.g. https://github.com/user/repo)"
+            type="text"
+            placeholder="Enter a URL to analyze (e.g. github.com/user/repo or https://...)"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={isLoading}
             autoComplete="off"
             spellCheck="false"
-            aria-label="URL to scan"
+            aria-label="URL to scan — https:// prefix will be added automatically if omitted"
           />
         </div>
         <button
@@ -68,24 +68,8 @@ export default function ScanInput({ onScan, isLoading }) {
         {PLACEHOLDER_URLS.slice(0, 3).map((suggestion) => (
           <button
             key={suggestion}
+            className="suggestion-chip"
             onClick={() => handleSuggestion(suggestion)}
-            style={{
-              background: 'var(--bg-glass)',
-              border: '1px solid var(--border)',
-              borderRadius: '99px',
-              color: 'var(--accent-cyan)',
-              fontSize: '11px',
-              padding: '4px 12px',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-mono)',
-              transition: 'all 0.2s',
-              maxWidth: '200px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => { e.target.style.borderColor = 'var(--accent-cyan)'; e.target.style.background = 'rgba(6,182,212,0.08)'; }}
-            onMouseLeave={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.background = 'var(--bg-glass)'; }}
             title={suggestion}
           >
             {suggestion.replace('https://', '').substring(0, 30)}…

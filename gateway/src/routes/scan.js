@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const axios = require('axios');
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
@@ -40,6 +41,9 @@ router.post('/scan', async (req, res) => {
 
     if (!rawUrl || typeof rawUrl !== 'string') {
         return res.status(400).json({ error: 'url is required and must be a string' });
+    }
+    if (rawUrl.length > 2048) {
+        return res.status(400).json({ error: 'url exceeds maximum allowed length of 2048 characters' });
     }
 
     // ── URL Parsing ───────────────────────────────────────────────────────────
@@ -141,30 +145,30 @@ router.post('/scan', async (req, res) => {
     }
 
     // Compute content hash for future cache validation
-    const htmlHash = rawHtml ?
-        require('crypto').createHash('sha256')
-        .update(rawHtml.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\s+/g, ' ').trim())
-        .digest('hex') :
-        null;
+    const htmlHash = rawHtml
+        ? crypto.createHash('sha256')
+            .update(rawHtml.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\s+/g, ' ').trim())
+            .digest('hex')
+        : null;
 
-    // Run Level 2 analyzers (concurrent where possible)
-    const [patternResult, mismatchResult, obfuscationResult, githubResult] = await Promise.all([
-        Promise.resolve(detectPatterns(parsedHtml.visibleText)),
-        Promise.resolve(detectDomainMismatch(
-            parsedHtml.anchors,
-            hostname,
-            parsedHtml.visibleText, // for page-level brand inference
-            parsedHtml.title,
-        )),
-        Promise.resolve(detectObfuscation(url, parsedUrl)),
+    // Run Level 2 analyzers — synchronous ones run directly, async ones run concurrently
+    const patternResult     = detectPatterns(parsedHtml.visibleText);
+    const mismatchResult    = detectDomainMismatch(
+        parsedHtml.anchors,
+        hostname,
+        parsedHtml.visibleText,
+        parsedHtml.title,
+    );
+    const obfuscationResult = detectObfuscation(url, parsedUrl);
+
+    // GitHub context and WHOIS are both I/O-bound — run concurrently
+    const [githubResult, rankFeatures, whoisFeatureResult] = await Promise.all([
         analyzeGitHubContext(url, parsedHtml),
-    ]);
-
-    // Domain rank and WHOIS run concurrently with the above (both are I/O-bound)
-    const [rankFeatures, whoisFeatureResult] = await Promise.all([
         Promise.resolve(getDomainRankFeatures(registeredDomain)),
         getWhoisFeatures(registeredDomain, mismatchResult.inferred_brand),
     ]);
+
+
 
     // Form behavior signals
     let crossOriginForm = false;

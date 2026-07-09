@@ -84,16 +84,10 @@ export default function App() {
 
           {/* Loading State */}
           {isLoading && (
-            <div className="glass-card" style={{ padding: 32, textAlign: 'center', marginBottom: 32 }}>
-              <div style={{ fontSize: 32, marginBottom: 16 }}>
-                <span className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }} />
-              </div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: 15 }}>
-                Running multi-level phishing analysis…
-              </p>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 8 }}>
-                Level 1 → Level 2 → Level 3 ML inference
-              </p>
+            <div className="glass-card loading-card">
+              <span className="spinner loading-spinner" aria-hidden="true" />
+              <p className="loading-primary">Running multi-level phishing analysis…</p>
+              <p className="loading-secondary">Level 1 → Level 2 → Level 3 ML inference</p>
             </div>
           )}
 
