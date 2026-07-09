@@ -1,82 +1,327 @@
-const path = require('path');
+const axios = require('axios');
 const logger = require('../utils/logger');
-const { parse } = require('tldts');
 
-let whitelistDomains = new Set();
-let whitelistExact = new Set();
+const API_URL = 'https://whitelist.freehosting.dev/check.php';
+
+// Common wildcard hosting platforms where subdomains should NOT be auto-trusted
+const WILDCARD_HOSTING = new Set([
+  // Git hosting
+  'github.io',
+  'gitlab.io',
+  'bitbucket.io',
+
+  // Vercel / Netlify / Cloudflare
+  'vercel.app',
+  'netlify.app',
+  'pages.dev',
+  'workers.dev',
+
+  // Firebase / Google
+  'firebaseapp.com',
+  'web.app',
+
+  // Microsoft
+  'azurewebsites.net',
+  'azurestaticapps.net',
+  'cloudapp.net',
+
+  // AWS
+  'amazonaws.com',
+  'elasticbeanstalk.com',
+  'amplifyapp.com',
+
+  // Oracle / IBM / SAP
+  'oraclecloud.com',
+  'mybluemix.net',
+  'ondigitalocean.app',
+
+  // Railway / Render / Fly
+  'onrender.com',
+  'railway.app',
+  'fly.dev',
+  'fly.io',
+
+  // Heroku
+  'herokuapp.com',
+  'herokudns.com',
+
+  // DigitalOcean
+  'ondigitalocean.app',
+
+  // Glitch / Replit / Codespaces
+  'glitch.me',
+  'replit.app',
+  'repl.co',
+  'replit.dev',
+  'githubpreview.dev',
+
+  // Cloud IDEs
+  'gitpod.io',
+  'codesandbox.io',
+  'stackblitz.io',
+
+  // Surge / Static hosting
+  'surge.sh',
+  'pages.fm',
+  'tiiny.site',
+
+  // InfinityFree / Free hosting
+  'epizy.com',
+  'rf.gd',
+  '42web.io',
+  'infy.uk',
+  'free.nf',
+
+  // 000webhost
+  '000webhostapp.com',
+
+  // Blogger / Wordpress
+  'blogspot.com',
+  'wordpress.com',
+
+  // Wix / Weebly / Squarespace
+  'wixsite.com',
+  'weebly.com',
+  'square.site',
+
+  // Google Sites
+  'sites.google.com',
+
+  // Notion
+  'notion.site',
+
+  // Carrd
+  'carrd.co',
+
+  // Tilda
+  'tilda.ws',
+
+  // ReadTheDocs
+  'readthedocs.io',
+
+  // GitBook
+  'gitbook.io',
+
+  // Shopify previews
+  'myshopify.com',
+
+  // Tumblr
+  'tumblr.com',
+
+  // Medium
+  'medium.com',
+
+  // Substack
+  'substack.com',
+
+  // Ghost
+  'ghost.io',
+
+  // Webflow
+  'webflow.io',
+
+  // Bubble
+  'bubbleapps.io',
+
+  // Softr
+  'softr.app',
+
+  // Framer
+  'framer.website',
+  'framer.app',
+
+  // Typedream
+  'typedream.app',
+
+  // Webnode
+  'webnode.page',
+
+  // Strikingly
+  'mystrikingly.com',
+
+  // Jimdo
+  'jimdosite.com',
+
+  // Cargo
+  'cargo.site',
+
+  // Neocities
+  'neocities.org',
+
+  // Glitch
+  'glitch.global',
+
+  // Pantheon
+  'pantheonsite.io',
+
+  // Kinsta
+  'kinsta.cloud',
+
+  // Render previews
+  'onrender.com',
+
+  // Cloudflare Pages
+  'pages.dev',
+
+  // Zeabur
+  'zeabur.app',
+
+  // Northflank
+  'northflank.app',
+
+  // Cyclic
+  'cyclic.app',
+
+  // Deno Deploy
+  'deno.dev',
+
+  // EdgeOne Pages
+  'edgeone.app',
+
+  // IPFS gateways
+  'ipfs.dweb.link',
+  'ipfs.cf-ipfs.com',
+
+  // LocalTunnel / ngrok-like
+  'loca.lt',
+  'serveo.net',
+  'trycloudflare.com',
+  'ngrok-free.app',
+
+  // DuckDNS
+  'duckdns.org',
+
+  // No-IP
+  'ddns.net',
+  'hopto.org',
+  'zapto.org',
+  'serveftp.net',
+  'sytes.net',
+
+  // Dynu
+  'dynu.net',
+
+  // Freedns
+  'mywire.org',
+  'mooo.com',
+
+  // DynDNS
+  'dyndns.org',
+  'homeip.net',
+
+  // DuckDNS alternatives
+  'duckdns.info',
+
+  // Hoppy
+  'hoppy.jp',
+
+  // PageXL
+  'pagexl.com',
+
+  // Yolasite
+  'yolasite.com',
+
+  // Hostinger Horizons
+  'hstgr.io',
+
+  // Netlify aliases
+  'netlify.live',
+
+  // Cloud66
+  'cloud66.ws',
+
+  // EasyWP
+  'easywp.com',
+
+  // Zoho Sites
+  'zohosites.com',
+
+  // Google App Engine
+  'appspot.com',
+
+  // PythonAnywhere
+  'pythonanywhere.com',
+
+  // AlwaysData
+  'alwaysdata.net',
+
+  // AwardSpace
+  'awardspace.info',
+
+  // Altervista
+  'altervista.org',
+
+  // ByetHost
+  'byethost.com',
+
+  // Hostinger free
+  'hostingerapp.com',
+
+  // Infinity mirrors
+  'lovestoblog.com',
+  'great-site.net',
+
+  // Misc
+  'dev.to',
+  'hashnode.dev',
+  'hashnode.com',
+  'codeberg.page',
+  'sourcehut.io'
+]);
 
 /**
- * Loads the static whitelist from whitelist.json into memory at startup.
- * Called once during server initialization.
+ * Dynamic Whitelist with Subdomain Awareness
  */
-function loadWhitelist() {
+async function trustScore(hostname, registeredDomain) {
+  const domainToCheck = registeredDomain || hostname;
+
   try {
-    const data = require(path.resolve(__dirname, '../../config/whitelist.json'));
-    whitelistDomains = new Set(data.domains || []);
-    whitelistExact = new Set(data.subdomains_exact || []);
-    logger.info(`✅ Static whitelist loaded: ${whitelistDomains.size} domains, ${whitelistExact.size} exact subdomains`);
-  } catch (err) {
-    logger.error('Failed to load whitelist.json:', err.message);
-  }
-}
-
-/**
- * Computes a trust score for a hostname and returns gating instructions.
- *
- * | Case                                                   | score | fastPath | whitelistPartialMatch |
- * |--------------------------------------------------------|-------|----------|-----------------------|
- * | Exact hostname in subdomains_exact                     |  1.0  |  true    | false                 |
- * | eTLD+1 in domains AND hostname === registeredDomain    |  1.0  |  true    | false                 |
- * | eTLD+1 in domains AND one standard subdomain (no extra)|  1.0  |  true    | false                 |
- * | eTLD+1 in domains BUT extra subdomain levels present   |  0.4  |  false   | true  (send to L2)    |
- * | Not in whitelist                                       |  0.0  |  false   | false                 |
- *
- * The whitelistPartialMatch flag catches spoofed subdomain attacks like:
- *   accounts.google.com.verify-login.xyz  (eTLD+1 is verify-login.xyz, not google.com)
- *
- * @param {string} hostname         - e.g. "accounts.google.com"
- * @param {string} registeredDomain - eTLD+1, e.g. "google.com"
- * @returns {{ score: number, fastPath: boolean, whitelistPartialMatch: boolean }}
- */
-function trustScore(hostname, registeredDomain) {
-  // 1. Exact subdomain match (highest priority)
-  if (whitelistExact.has(hostname)) {
-    return { score: 1.0, fastPath: true, whitelistPartialMatch: false };
-  }
-
-  // 2. eTLD+1 match
-  if (whitelistDomains.has(registeredDomain)) {
-    // Bare domain match (hostname IS the registered domain, e.g. google.com → google.com)
-    if (hostname === registeredDomain) {
-      return { score: 1.0, fastPath: true, whitelistPartialMatch: false };
-    }
-
-    // Check whether hostname has only one subdomain level (e.g. www.google.com, accounts.google.com)
-    const suffix = '.' + registeredDomain;
-    if (hostname.endsWith(suffix)) {
-      const subdomain = hostname.slice(0, hostname.length - suffix.length);
-      // Reject if subdomain itself has dots (e.g. evil.accounts.google.com)
-      if (!subdomain.includes('.')) {
-        return { score: 1.0, fastPath: true, whitelistPartialMatch: false };
+    const TEST_COOKIE = process.env.INFINITYFREE_TEST_COOKIE;
+    const response = await axios.get(API_URL, {
+      params: { name: domainToCheck },
+      timeout: 6000,
+      headers: {
+        "User-Agent": "Google Chrome/11",
+        Cookie: `__test=${TEST_COOKIE}`,
+        "Accept": "application/json, text/plain, */*"
       }
+    });
+
+    const data = response.data;
+
+    logger.info(`Whitelist response: ${JSON.stringify(response.data)}`);
+    logger.info(JSON.stringify(response.config.headers, null, 2));
+
+    if (data.exists === true) {
+      // Check if this is a dangerous wildcard hosting domain
+      if (WILDCARD_HOSTING.has(domainToCheck)) {
+        logger.info(`⚠️  Wildcard hosting domain detected: ${domainToCheck} — sending to L2`);
+        return {
+          fastPath: false,
+          whitelistPartialMatch: true,   // Important flag
+          isWildcardHosting: true,
+        };
+      }
+
+      // Normal trusted domain (e.g. google.com, microsoft.com)
+      logger.info(`✅ Dynamic Whitelist HIT: ${domainToCheck}`);
+      return {
+        fastPath: true,
+        whitelistPartialMatch: false,
+      };
+    } else {
+      return {
+        fastPath: false,
+        whitelistPartialMatch: false,
+      };
     }
-    // Multi-level subdomain on a whitelisted domain — partial match, send to L2
-    return { score: 0.4, fastPath: false, whitelistPartialMatch: true };
+  } catch (error) {
+    logger.warn(`Whitelist API error for ${domainToCheck}: ${error.message}`);
+    return {
+      fastPath: false,
+      whitelistPartialMatch: false,
+    };
   }
-
-  // 3. No match
-  return { score: 0.0, fastPath: false, whitelistPartialMatch: false };
 }
 
-/**
- * @deprecated Use trustScore() instead.
- * Kept for backward compatibility with any direct callers outside scan.js.
- */
-function isWhitelisted(hostname, registeredDomain) {
-  return trustScore(hostname, registeredDomain).fastPath;
-}
-
-// Load on module initialization
-loadWhitelist();
-
-module.exports = { trustScore, isWhitelisted, loadWhitelist };
+module.exports = { trustScore };

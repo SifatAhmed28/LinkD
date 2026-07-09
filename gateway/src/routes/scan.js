@@ -57,7 +57,7 @@ router.post('/scan', async (req, res) => {
     // ════════════════════════════════════════════════════════════════════════
     //  LEVEL 1 — Static Whitelist Check (trust-score gating)
     // ════════════════════════════════════════════════════════════════════════
-    const whitelistResult = trustScore(hostname, registeredDomain);
+    const whitelistResult = await trustScore(hostname, registeredDomain);
     if (whitelistResult.fastPath) {
         logger.info(`✅ L1 Whitelist HIT: ${url}`);
         return res.json(buildResponse(url, 'SAFE', 0.0, 1.0, 'L1_WHITELIST', {}, true, startTime));
