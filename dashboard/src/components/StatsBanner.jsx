@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getHealth } from '../api/scanApi';
 
 const DEFAULT_STATS = {
@@ -12,16 +12,21 @@ export default function StatsBanner({ scanHistory }) {
   const [health, setHealth] = useState({ gateway: 'loading', ml_service: 'loading' });
 
   // Derive stats from scan history
-  const stats = React.useMemo(() => {
+  const stats = useMemo(() => {
     if (!scanHistory?.length) return DEFAULT_STATS;
     const total = scanHistory.length;
     const threats = scanHistory.filter(r => r.verdict === 'MALICIOUS' || r.verdict === 'SUSPICIOUS').length;
     const safeCount = scanHistory.filter(r => r.verdict === 'SAFE').length;
     const avgMs = Math.round(scanHistory.reduce((s, r) => s + (r.response_ms || 0), 0) / total);
-    return { scansToday: total, threatsBlocked: threats, avgResponseMs: avgMs, safeUrls: safeCount };
+    return { 
+      scansToday: total, 
+      threatsBlocked: threats, 
+      avgResponseMs: avgMs, 
+      safeUrls: safeCount 
+    };
   }, [scanHistory]);
 
-  // Poll health every 30s
+  // One-time health check on mount (no periodic polling)
   useEffect(() => {
     const fetchHealth = async () => {
       try {
@@ -31,14 +36,13 @@ export default function StatsBanner({ scanHistory }) {
         setHealth({ gateway: 'offline', ml_service: 'offline' });
       }
     };
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 30000);
-    return () => clearInterval(interval);
-  }, []);
+
+    fetchHealth(); // Only once when component mounts
+  }, []); // Empty dependency array = run once
 
   const gatewayOnline = health.gateway === 'ok';
   const mlOnline = health.ml_service === 'ok';
-
+  
   return (
     <div className="stats-banner">
       <div className="glass-card stat-card">
