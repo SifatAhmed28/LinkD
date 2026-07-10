@@ -129,9 +129,6 @@ async function analyzeGitHubContext(url, parsedHtml) {
       result.flags.push('no_description');
     }
 
-    // Assign API-derived score to result before DOM analysis
-    result.githubScore = score;
-
   } catch (err) {
     if (err.status === 404) {
       logger.warn(`GitHub repo not found: ${owner}/${repo}`);
