@@ -1,190 +1,327 @@
+const axios = require('axios');
 const logger = require('../utils/logger');
 
-// ── Trusted top-level domains (fast-path SAFE — no L2/L3 needed) ──────────────
-// These are canonical, brand-owned registered domains.
-// Subdomains (e.g. evil.google.com) are NOT trusted via this set —
-// they are caught by the WILDCARD_HOSTING guard below and sent to L2.
-const TRUSTED_DOMAINS = new Set([
-  // Search / Productivity
-  'google.com', 'google.co.uk', 'google.ca', 'google.com.au',
-  'youtube.com', 'gmail.com', 'googlemail.com', 'googleapis.com',
+const API_URL = 'https://whitelist.freehosting.dev/check.php';
 
-  // Microsoft
-  'microsoft.com', 'outlook.com', 'hotmail.com', 'live.com',
-  'office.com', 'office365.com', 'microsoftonline.com',
-  'azure.com', 'bing.com', 'xbox.com',
-
-  // Apple
-  'apple.com', 'icloud.com',
-
-  // Meta
-  'facebook.com', 'fb.com', 'instagram.com', 'messenger.com',
-  'whatsapp.com', 'meta.com',
-
-  // Amazon
-  'amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr',
-  'amazon.ca', 'amazon.com.au', 'aws.amazon.com', 'amazonaws.com',
-
-  // Developer / Code
-  'github.com', 'githubusercontent.com', 'gitlab.com', 'bitbucket.org',
-  'stackoverflow.com', 'stackexchange.com', 'npmjs.com', 'pypi.org',
-
-  // Social / Media
-  'twitter.com', 'x.com', 'linkedin.com', 'reddit.com', 'pinterest.com',
-  'tiktok.com', 'snapchat.com', 'discord.com', 'twitch.tv',
-
-  // Payments / Finance
-  'paypal.com', 'stripe.com', 'square.com', 'venmo.com',
-  'chase.com', 'wellsfargo.com', 'bankofamerica.com', 'citi.com',
-  'capitalone.com', 'americanexpress.com',
-
-  // Entertainment / Streaming
-  'netflix.com', 'spotify.com', 'hulu.com', 'disneyplus.com',
-  'primevideo.com', 'twitch.tv',
-
-  // Cloud / Infra
-  'cloudflare.com', 'vercel.com', 'netlify.com', 'heroku.com',
-  'digitalocean.com', 'linode.com', 'fastly.com',
-
-  // Commerce / SaaS
-  'shopify.com', 'ebay.com', 'etsy.com', 'alibaba.com',
-  'salesforce.com', 'hubspot.com', 'zendesk.com', 'atlassian.com',
-  'slack.com', 'zoom.us', 'dropbox.com', 'box.com', 'notion.so',
-
-  // News / Reference
-  'wikipedia.org', 'wikimedia.org',
-  'bbc.com', 'bbc.co.uk', 'cnn.com', 'nytimes.com',
-
-  // Government / Education (generic TLDs)
-  // Not enumerated here — .gov / .edu TLDs are handled by TLD check if desired
-]);
-
-// ── Wildcard hosting platforms ─────────────────────────────────────────────────
-// Subdomains on these platforms are controlled by arbitrary users — they must NOT
-// be trusted even if the root domain appears in a whitelist.
-// Any URL on these platforms is sent to L2 with whitelistPartialMatch=true.
+// Common wildcard hosting platforms where subdomains should NOT be auto-trusted
 const WILDCARD_HOSTING = new Set([
-  // Git hosting / Pages
-  'github.io', 'gitlab.io', 'bitbucket.io',
+  // Git hosting
+  'github.io',
+  'gitlab.io',
+  'bitbucket.io',
 
   // Vercel / Netlify / Cloudflare
-  'vercel.app', 'netlify.app', 'netlify.live', 'pages.dev', 'workers.dev',
+  'vercel.app',
+  'netlify.app',
+  'pages.dev',
+  'workers.dev',
 
   // Firebase / Google
-  'firebaseapp.com', 'web.app', 'appspot.com',
+  'firebaseapp.com',
+  'web.app',
 
-  // Microsoft Azure
-  'azurewebsites.net', 'azurestaticapps.net', 'cloudapp.net',
+  // Microsoft
+  'azurewebsites.net',
+  'azurestaticapps.net',
+  'cloudapp.net',
 
   // AWS
-  'amazonaws.com', 'elasticbeanstalk.com', 'amplifyapp.com',
+  'amazonaws.com',
+  'elasticbeanstalk.com',
+  'amplifyapp.com',
 
-  // Oracle / IBM
-  'oraclecloud.com', 'mybluemix.net',
+  // Oracle / IBM / SAP
+  'oraclecloud.com',
+  'mybluemix.net',
+  'ondigitalocean.app',
 
   // Railway / Render / Fly
-  'onrender.com', 'railway.app', 'fly.dev', 'fly.io',
+  'onrender.com',
+  'railway.app',
+  'fly.dev',
+  'fly.io',
 
   // Heroku
-  'herokuapp.com', 'herokudns.com',
+  'herokuapp.com',
+  'herokudns.com',
 
   // DigitalOcean
   'ondigitalocean.app',
 
   // Glitch / Replit / Codespaces
-  'glitch.me', 'replit.app', 'repl.co', 'replit.dev', 'githubpreview.dev',
+  'glitch.me',
+  'replit.app',
+  'repl.co',
+  'replit.dev',
+  'githubpreview.dev',
 
   // Cloud IDEs
-  'gitpod.io', 'codesandbox.io', 'stackblitz.io',
+  'gitpod.io',
+  'codesandbox.io',
+  'stackblitz.io',
 
   // Surge / Static hosting
-  'surge.sh', 'pages.fm', 'tiiny.site',
+  'surge.sh',
+  'pages.fm',
+  'tiiny.site',
 
-  // Free hosting
-  'epizy.com', 'rf.gd', '42web.io', 'infy.uk', 'free.nf',
+  // InfinityFree / Free hosting
+  'epizy.com',
+  'rf.gd',
+  '42web.io',
+  'infy.uk',
+  'free.nf',
+
+  // 000webhost
   '000webhostapp.com',
 
   // Blogger / Wordpress
-  'blogspot.com', 'wordpress.com',
+  'blogspot.com',
+  'wordpress.com',
 
   // Wix / Weebly / Squarespace
-  'wixsite.com', 'weebly.com', 'square.site',
+  'wixsite.com',
+  'weebly.com',
+  'square.site',
 
-  // Google Sites / Notion
-  'sites.google.com', 'notion.site',
+  // Google Sites
+  'sites.google.com',
 
-  // Low-code / No-code
-  'carrd.co', 'tilda.ws', 'webflow.io', 'bubbleapps.io', 'softr.app',
-  'framer.website', 'framer.app', 'typedream.app', 'webnode.page',
-  'mystrikingly.com', 'jimdosite.com', 'cargo.site',
+  // Notion
+  'notion.site',
 
-  // Docs / Dev platforms
-  'readthedocs.io', 'gitbook.io', 'hashnode.dev', 'hashnode.com',
-  'dev.to', 'codeberg.page', 'sourcehut.io',
+  // Carrd
+  'carrd.co',
 
-  // CMS / Blogging
-  'myshopify.com', 'tumblr.com', 'medium.com', 'substack.com',
+  // Tilda
+  'tilda.ws',
+
+  // ReadTheDocs
+  'readthedocs.io',
+
+  // GitBook
+  'gitbook.io',
+
+  // Shopify previews
+  'myshopify.com',
+
+  // Tumblr
+  'tumblr.com',
+
+  // Medium
+  'medium.com',
+
+  // Substack
+  'substack.com',
+
+  // Ghost
   'ghost.io',
 
-  // Misc cloud
-  'neocities.org', 'glitch.global', 'pantheonsite.io', 'kinsta.cloud',
-  'zeabur.app', 'northflank.app', 'cyclic.app', 'deno.dev',
+  // Webflow
+  'webflow.io',
+
+  // Bubble
+  'bubbleapps.io',
+
+  // Softr
+  'softr.app',
+
+  // Framer
+  'framer.website',
+  'framer.app',
+
+  // Typedream
+  'typedream.app',
+
+  // Webnode
+  'webnode.page',
+
+  // Strikingly
+  'mystrikingly.com',
+
+  // Jimdo
+  'jimdosite.com',
+
+  // Cargo
+  'cargo.site',
+
+  // Neocities
+  'neocities.org',
+
+  // Glitch
+  'glitch.global',
+
+  // Pantheon
+  'pantheonsite.io',
+
+  // Kinsta
+  'kinsta.cloud',
+
+  // Render previews
+  'onrender.com',
+
+  // Cloudflare Pages
+  'pages.dev',
+
+  // Zeabur
+  'zeabur.app',
+
+  // Northflank
+  'northflank.app',
+
+  // Cyclic
+  'cyclic.app',
+
+  // Deno Deploy
+  'deno.dev',
+
+  // EdgeOne Pages
   'edgeone.app',
 
   // IPFS gateways
-  'ipfs.dweb.link', 'ipfs.cf-ipfs.com',
+  'ipfs.dweb.link',
+  'ipfs.cf-ipfs.com',
 
-  // Tunnel services (very high risk)
-  'loca.lt', 'serveo.net', 'trycloudflare.com', 'ngrok-free.app',
+  // LocalTunnel / ngrok-like
+  'loca.lt',
+  'serveo.net',
+  'trycloudflare.com',
+  'ngrok-free.app',
 
-  // Dynamic DNS (high phishing abuse)
-  'duckdns.org', 'ddns.net', 'hopto.org', 'zapto.org',
-  'serveftp.net', 'sytes.net', 'dynu.net', 'mywire.org',
-  'mooo.com', 'dyndns.org', 'homeip.net', 'duckdns.info',
+  // DuckDNS
+  'duckdns.org',
 
-  // Misc free hosting
-  'yolasite.com', 'hstgr.io', 'easywp.com', 'zohosites.com',
-  'pythonanywhere.com', 'alwaysdata.net', 'awardspace.info',
-  'altervista.org', 'byethost.com', 'hostingerapp.com',
-  'lovestoblog.com', 'great-site.net',
-  'hoppy.jp', 'pagexl.com',
+  // No-IP
+  'ddns.net',
+  'hopto.org',
+  'zapto.org',
+  'serveftp.net',
+  'sytes.net',
+
+  // Dynu
+  'dynu.net',
+
+  // Freedns
+  'mywire.org',
+  'mooo.com',
+
+  // DynDNS
+  'dyndns.org',
+  'homeip.net',
+
+  // DuckDNS alternatives
+  'duckdns.info',
+
+  // Hoppy
+  'hoppy.jp',
+
+  // PageXL
+  'pagexl.com',
+
+  // Yolasite
+  'yolasite.com',
+
+  // Hostinger Horizons
+  'hstgr.io',
+
+  // Netlify aliases
+  'netlify.live',
+
+  // Cloud66
+  'cloud66.ws',
+
+  // EasyWP
+  'easywp.com',
+
+  // Zoho Sites
+  'zohosites.com',
+
+  // Google App Engine
+  'appspot.com',
+
+  // PythonAnywhere
+  'pythonanywhere.com',
+
+  // AlwaysData
+  'alwaysdata.net',
+
+  // AwardSpace
+  'awardspace.info',
+
+  // Altervista
+  'altervista.org',
+
+  // ByetHost
+  'byethost.com',
+
+  // Hostinger free
+  'hostingerapp.com',
+
+  // Infinity mirrors
+  'lovestoblog.com',
+  'great-site.net',
+
+  // Misc
+  'dev.to',
+  'hashnode.dev',
+  'hashnode.com',
+  'codeberg.page',
+  'sourcehut.io'
 ]);
 
 /**
- * Checks whether a hostname/domain should be fast-pathed as SAFE (Level 1),
- * flagged as a wildcard hosting platform (→ L2), or treated as unknown (→ L2).
- *
- * @param {string} hostname        - Full hostname (e.g. "paypal.com", "evil.github.io")
- * @param {string} registeredDomain - Registered domain from tldts (e.g. "github.io")
- * @returns {{ fastPath: boolean, whitelistPartialMatch: boolean, isWildcardHosting?: boolean }}
+ * Dynamic Whitelist with Subdomain Awareness
  */
-function trustScore(hostname, registeredDomain) {
+async function trustScore(hostname, registeredDomain) {
   const domainToCheck = registeredDomain || hostname;
 
-  // 1. Wildcard hosting check (takes priority — even if root is "trusted")
-  if (WILDCARD_HOSTING.has(domainToCheck)) {
-    logger.info(`⚠️  Wildcard hosting domain: ${domainToCheck} — sending to L2`);
+  try {
+    const TEST_COOKIE = process.env.INFINITYFREE_TEST_COOKIE;
+    const response = await axios.get(API_URL, {
+      params: { name: domainToCheck },
+      timeout: 6000,
+      headers: {
+        "User-Agent": "Google Chrome/11",
+        Cookie: `__test=${TEST_COOKIE}`,
+        "Accept": "application/json, text/plain, */*"
+      }
+    });
+
+    const data = response.data;
+
+    logger.info(`Whitelist response: ${JSON.stringify(response.data)}`);
+    logger.info(JSON.stringify(response.config.headers, null, 2));
+
+    if (data.exists === true) {
+      // Check if this is a dangerous wildcard hosting domain
+      if (WILDCARD_HOSTING.has(domainToCheck)) {
+        logger.info(`⚠️  Wildcard hosting domain detected: ${domainToCheck} — sending to L2`);
+        return {
+          fastPath: false,
+          whitelistPartialMatch: true,   // Important flag
+          isWildcardHosting: true,
+        };
+      }
+
+      // Normal trusted domain (e.g. google.com, microsoft.com)
+      logger.info(`✅ Dynamic Whitelist HIT: ${domainToCheck}`);
+      return {
+        fastPath: true,
+        whitelistPartialMatch: false,
+      };
+    } else {
+      return {
+        fastPath: false,
+        whitelistPartialMatch: false,
+      };
+    }
+  } catch (error) {
+    logger.warn(`Whitelist API error for ${domainToCheck}: ${error.message}`);
     return {
       fastPath: false,
-      whitelistPartialMatch: true,
-      isWildcardHosting: true,
-    };
-  }
-
-  // 2. Trusted domain exact match
-  if (TRUSTED_DOMAINS.has(domainToCheck)) {
-    logger.info(`✅ L1 Trusted domain HIT: ${domainToCheck}`);
-    return {
-      fastPath: true,
       whitelistPartialMatch: false,
     };
   }
-
-  // 3. Unknown — proceed to L2
-  return {
-    fastPath: false,
-    whitelistPartialMatch: false,
-  };
 }
 
-module.exports = { trustScore, TRUSTED_DOMAINS, WILDCARD_HOSTING };
+module.exports = { trustScore };
