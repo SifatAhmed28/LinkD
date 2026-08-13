@@ -48,9 +48,8 @@ const STATUS_ICON = { pass: '✓', catch: '✗', warning: '!', skip: '–' };
 
 // ── Sub-feature builders for each level ──────────────────────────────────────
 function buildL1WhitelistFeatures(result) {
-    // L2 features live inside breakdown.ml.l2_features (populated by L3 path),
-    // or directly in breakdown for L2-caught scans
     const f = result?.breakdown?.ml?.l2_features || result?.breakdown?.l2_features || {};
+
     return [{
             label: 'Exact domain whitelist match',
             ok: result?.level_caught === 'L1_WHITELIST' && result?.verdict === 'SAFE' && !f.whitelistPartialMatch,

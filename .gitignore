@@ -40,3 +40,7 @@ ml-service/screenshots/
 # IDE
 .vscode/
 .idea/
+
+# Temp Generated Files
+phishing_dataset_generator/dataset/legitimate
+phishing_dataset_generator/dataset/phishing

@@ -33,17 +33,37 @@ function parseUrl(rawUrl) {
 
 /**
  * Extracts the brand name heuristically from a URL or text string.
+ * Uses word-boundary regex against the full brand database to avoid
+ * false positives (e.g., "apple" inside "Snapple").
+ *
  * @param {string} text
  * @returns {string|null}
  */
 function extractBrandHint(text) {
-  const knownBrands = [
-    'paypal', 'google', 'microsoft', 'apple', 'amazon', 'facebook',
-    'instagram', 'twitter', 'linkedin', 'github', 'dropbox', 'netflix',
-    'spotify', 'slack', 'zoom', 'stripe', 'shopify', 'ebay'
-  ];
+  const { BRAND_DB, BRAND_NAMES } = require('../level2/brandDatabase');
   const lower = text.toLowerCase();
-  return knownBrands.find((b) => lower.includes(b)) || null;
+
+  // Try longest brand names first (more specific matches win)
+  let bestMatch = null;
+  let bestLen = 0;
+
+  for (const brand of BRAND_NAMES) {
+    const entry = BRAND_DB[brand];
+    const variants = [brand, ...entry.aliases];
+
+    for (const variant of variants) {
+      if (variant.length < 3) continue;
+      // Escape regex special chars and use word boundaries
+      const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+      if (regex.test(lower) && variant.length > bestLen) {
+        bestMatch = brand;
+        bestLen = variant.length;
+      }
+    }
+  }
+
+  return bestMatch;
 }
 
 module.exports = { parseUrl, extractBrandHint };

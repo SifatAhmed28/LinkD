@@ -1,0 +1,273 @@
+label,url,hosting_mode,platform,platform_domain,brand,resolved_real_domain,form_action,form_action_type,page_brand_domain_mismatch,form_action_brand_domain_mismatch,has_password_field,hidden_fields_count,tld_risk_score,urgency_score,fear_score,credential_keyword_score,visible_text,parsed_forms,url_entropy,url_digit_ratio,url_letter_ratio,url_num_dots,url_num_slashes,url_num_hyphens,url_num_equals,url_num_question,url_num_ampersand,url_num_percent,url_num_double_slash,url_num_sensitive_words,url_has_at_symbol,html_num_eval_calls,html_num_unescape_calls,html_has_right_click_disabled,html_has_favicon,html_num_hidden_inputs,authority_score,body_visible_text,document_title,document_upload_score,html_embedded_raster_bytes,html_empty_submit_button_count,html_has_full_viewport_image,html_has_fullscreen_form_layer,html_has_object_fit_cover_or_fill,html_has_raster_form_overlay_pattern,html_has_transparent_form_controls,html_max_z_index,html_num_absolute_position_rules,html_num_canvas,html_num_embedded_raster_images,html_num_fixed_position_rules,html_num_forms,html_num_images,html_num_password_inputs,html_num_svg,reward_score,url_path,brand_domain_known
+
+
+
+You have a second perfect separator:
+
+```text
+page_brand_domain_mismatch
+
+legitimate:
+False = 50.2%
+True  = 49.8%
+
+phishing:
+False = 0%
+True  = 100%
+```
+
+So:
+
+if not page_brand_domain_mismatch:
+    definitely legitimate
+
+Again, that's extremely strong.
+
+
+Your `form_action_type` is also almost a direct generator signature:
+
+```text
+                        Legitimate    Phishing
+
+empty                     56.4%         0%
+official_brand_cross      21.4%         0%
+same_origin               22.2%        51.2%
+same_platform_cross        0%          48.8%
+```
+
+There isn't even overlap for most categories.
+
+And `has_password_field` is another huge giveaway:
+
+```text
+                     Legitimate    Phishing
+
+False                  56.4%         0%
+True                   43.6%       100%
+```
+
+Every phishing page has a password field.
+
+That means even if you remove the domain mismatch columns, a tree can learn:
+
+```python
+if has_password_field == False:
+    legitimate
+```
+
+with high confidence.
+
+Your TLD feature is also suspicious:
+
+```text
+Legitimate mean: 0.00906
+Phishing mean:   0.15634
+```
+
+That's a huge class distribution shift. It doesn't appear perfectly separating, but it's definitely making the problem much easier.
+
+## What I would remove first
+
+For an experiment designed to test whether the rest of your features actually learn useful patterns, remove these four:
+
+```python
+LEAKAGE_COLUMNS = [
+    "page_brand_domain_mismatch",
+    "form_action_brand_domain_mismatch",
+    "form_action_type",
+    "has_password_field",
+]
+```
+
+Then:
+
+```python
+X = X.drop(
+    columns=[
+        c for c in LEAKAGE_COLUMNS
+        if c in X.columns
+    ]
+)
+```
+
+I would initially keep:
+
+```text
+tld_risk_score
+```
+
+but watch it carefully.
+
+If your scores remain unrealistically high, temporarily remove it too:
+
+```python
+LEAKAGE_COLUMNS = [
+    "page_brand_domain_mismatch",
+    "form_action_brand_domain_mismatch",
+    "form_action_type",
+    "has_password_field",
+    "tld_risk_score",
+]
+```
+
+### But removing features isn't the real fix
+
+The better solution is to fix the **dataset generator**.
+
+Those are actually legitimate phishing-detection features in the real world. Domain mismatch is useful. Form actions are useful. Password fields are useful.
+
+The problem is that your synthetic generator currently defines them too cleanly.
+
+You want overlap.
+
+For example, `has_password_field` should look more like:
+
+```text
+                Legitimate    Phishing
+
+False              40%          15%
+True               60%          85%
+```
+
+not:
+
+```text
+                Legitimate    Phishing
+
+False              56%           0%
+True               44%         100%
+```
+
+Similarly, `form_action_type` should have overlapping distributions.
+
+Something healthier might be:
+
+```text
+                               Legit     Phish
+
+same_origin                     55%       20%
+relative                        20%       15%
+empty                            5%        8%
+javascript                       3%        7%
+official_brand_cross_origin     10%        5%
+same_platform_cross_origin       5%       25%
+external_cross_origin            2%       20%
+```
+
+Not necessarily those exact percentages, but the key is:
+
+> No category should automatically determine the label.
+
+Your synthetic legitimate third-party pages are also causing this interesting result:
+
+```text
+page_brand_domain_mismatch=True
+```
+
+for about half of legitimate pages, which is actually good for reducing leakage.
+
+But phishing pages are still:
+
+```text
+page_brand_domain_mismatch=True = 100%
+```
+
+So there is still a one-way rule:
+
+```text
+False -> definitely legitimate
+```
+
+You could generate some phishing pages where the apparent page hostname is the official domain in a controlled synthetic setting, or simply avoid using that generator-ground-truth feature as a model input.
+
+The biggest issue remains `form_action_brand_domain_mismatch`:
+
+```text
+legitimate = always False
+phishing   = always True
+```
+
+That one should absolutely be excluded **until you modify generation logic**.
+
+### Your TLD score also needs examination
+
+This:
+
+```text
+label 0 mean = 0.009
+label 1 mean = 0.156
+```
+
+may be partly caused by your attacker-owned phishing domain generation.
+
+Especially if unknown TLDs currently do this:
+
+```python
+return TLD_RISK.get(
+    tld,
+    MAX_TLD_RISK
+)
+```
+
+then unknown attacker TLDs become:
+
+```text
+risk = 1.0
+```
+
+That can create artificial separation.
+
+I'd much rather use something like:
+
+```python
+DEFAULT_TLD_RISK = 0.0
+```
+
+or perhaps the median observed risk:
+
+```python
+DEFAULT_TLD_RISK = np.median(ATTACKER_TLD_WEIGHTS)
+```
+
+depending on what "unknown" means in your data.
+
+`unknown TLD == maximum phishing risk` is a pretty aggressive assumption for ML training.
+
+## And yes, explicitly shuffle anyway
+
+Even though `train_test_split()` already shuffles, you can add:
+
+```python
+df = df.sample(
+    frac=1,
+    random_state=42
+).reset_index(drop=True)
+```
+
+immediately after loading.
+
+That's fine.
+
+But it will not solve the `1.0` scores you showed.
+
+Your diagnostics have basically proven:
+
+```text
+Problem: feature/class construction
+Not problem: row ordering
+```
+
+The first experiment I'd run now is exactly the same pipeline with:
+
+```python
+LEAKAGE_COLUMNS = [
+    "page_brand_domain_mismatch",
+    "form_action_brand_domain_mismatch",
+    "form_action_type",
+    "has_password_field",
+]
+```
+
+removed.
+
+If Random Forest drops from `1.0` to something like `0.85–0.95`, that's actually a **better** result scientifically because then you're measuring a harder classification problem rather than generator fingerprints.

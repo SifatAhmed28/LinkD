@@ -10,6 +10,7 @@ import os
 import random
 import yaml
 from pathlib import Path
+from .attacker_domains import generate_random_combo, URL_PATH_PHRASES, FAKE_DOMAINS_PHRASES
 
 
 def load_brands_meta(meta_path: str) -> dict:
@@ -31,19 +32,6 @@ def _rand_token(length: int = 32) -> str:
 
 # --- Form action URL generators ---
 
-# Phishing subdomains that look plausible on each platform
-PHISHING_SUBDOMAINS = [
-    "auth-verify", "secure-login", "account-verify", "identity-check",
-    "login-portal", "security-check", "auth-portal", "verify-account",
-    "sso-portal", "account-confirm", "secure-auth", "login-verify",
-]
-
-PHISHING_PATHS = [
-    "/signin", "/login", "/verify", "/auth", "/account/signin",
-    "/sso/login", "/identity/verify", "/session/new", "/oauth/authorize",
-]
-
-
 def generate_phishing_action_url(platform_domain: str) -> str:
     """
     Generate a plausible form action URL hosted on the 3rd-party platform.
@@ -51,9 +39,10 @@ def generate_phishing_action_url(platform_domain: str) -> str:
     Returns URLs like: https://auth-verify.github.io/signin
     These look like they could be legitimate SSO/auth pages.
     """
-    subdomain = random.choice(PHISHING_SUBDOMAINS)
-    path = random.choice(PHISHING_PATHS)
-    return f"https://{subdomain}.{platform_domain}{path}"
+    subdomain = generate_random_combo(FAKE_DOMAINS_PHRASES, "domain")
+    url_path = generate_random_combo(URL_PATH_PHRASES)
+    url_path = '/' + url_path.lstrip('/')
+    return f"https://{subdomain}.{platform_domain}{url_path}"
 
 
 def generate_legitimate_action_url(real_domains: list[str]) -> str:

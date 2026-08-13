@@ -7,7 +7,7 @@
  * Redis cache entries with a different cache_version are treated as misses,
  * forcing a fresh scan so stale feature shapes never reach L3.
  */
-const FEATURE_SCHEMA_VERSION = 1;
+const FEATURE_SCHEMA_VERSION = 2;
 
 /**
  * Canonical ordered list of every feature key in the L2 feature vector.
@@ -30,10 +30,18 @@ const FEATURE_KEYS = [
   'fearDetected',
   'credentialDetected',
 
-  // MISMATCH
-  'domainMismatch',
-  'inferred_brand',         // Phase 3 (domainMismatch.js extension)
-  'brand_domain_match',     // Phase 3
+  // MISMATCH — domainMismatch.js (6-layer detection)
+  'domainMismatch',              // Composite mismatch score (0–1)
+  'inferred_brand',              // Brand name inferred from page content
+  'brand_domain_match',          // Boolean: page hostname IS the brand's canonical domain
+  'page_brand_mismatch',         // Layer 1: page hostname vs inferred brand (0–1)
+  'subdomain_spoofing',          // Layer 1: brand as subdomain of non-brand domain
+  'closest_brand',               // Layer 3: brand domain most similar to hostname
+  'domain_edit_distance',        // Layer 3: Levenshtein distance to closest brand domain
+  'domain_similarity_score',     // Layer 3: Jaro-Winkler + LCS similarity (0–1)
+  'combosquatting_detected',     // Layer 4: brand + trust keywords in hostname
+  'phonetic_match',              // Layer 5: hostname phonetically resembles a brand
+  'tld_risk_score',              // Layer 6: TLD phishing risk score (0–1)
 
   // OBFUSC — existing scalar
   'urlObfuscation',

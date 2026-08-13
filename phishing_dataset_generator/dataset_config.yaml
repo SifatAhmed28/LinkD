@@ -1,14 +1,20 @@
 # Phishing Dataset Generator Configuration
-# Uses real brand login page HTML templates from templates/brands/
+#
+# Generates synthetic phishing and legitimate pages for ML model training.
+# Supports two phishing hosting modes:
+#   1. Third-party hosted (facebook.github.io, paypal.netlify.app)
+#   2. Attacker-owned domains (faceb00k.com, paypal-secure.xyz)
+#
+# Also supports diverse legitimate page types for a balanced dataset.
 
 seed: 42
 
 # --- Dataset Size ---
 sizes:
-  phishing: 500
-  legitimate: 500
+  phishing: 4000
+  legitimate: 4000
 
-# --- 3rd-Party Hosting Platforms ---
+# --- 3rd-Party Hosting Platforms (used for third_party mode) ---
 platforms:
   - name: github_io
     domain: github.io
@@ -21,14 +27,39 @@ platforms:
     weight: 0.20
   - name: firebase_app
     domain: firebaseapp.com
-    weight: 0.20
+    weight: 0.15
   - name: pages_dev
     domain: pages.dev
-    weight: 0.15
+    weight: 0.10
+  - name: notion_site
+    domain: notion.site
+    weight: 0.10
 
-# --- Brands to use ---
-# Keys must match entries in templates/brands_meta.yaml
-# Generator skips brands that don't have a matching HTML template file.
+# --- Phishing Hosting Mode Distribution ---
+# Controls what fraction of phishing pages use each hosting mode.
+# facebook.github.io (trusted platform abuse)
+# faceb00k.com (typosquatting/combosquatting)
+
+# --- Legitimate Hosting Mode Distribution ---
+
+# Legitimate pages may appear on:
+# 1. The brand's real first-party domain
+# 2. A legitimate project hosted on shared third-party infrastructure
+
+hosting_modes:
+  first_party: 0.50
+  third_party: 0.50
+
+# --- Attacker Domain Strategies ---
+# How attacker-owned domains are generated.
+attacker_strategies:
+  typosquat: 0.30     # faceb00k.com, g00gle.com, amaz0n.com
+  combosquat: 0.30    # paypal-secure.com, login-microsoft.xyz
+  phonetic: 0.15      # fasebook.com, amason.com
+  subdomain: 0.15     # facebook.secure-login.com
+  tld_swap: 0.10      # google.xyz, facebook.co
+
+# --- Brands ---
 brands:
   - google
   - microsoft
@@ -40,11 +71,31 @@ brands:
   - linkedin
   - netflix
   - twitter
+  - github
+  - dropbox
+
+# --- Phishing Strategies (social engineering tactics) ---
+phishing_strategies:
+  credential_harvest: 0.30
+  urgency: 0.15
+  authority: 0.10
+  fear: 0.10
+  reward: 0.10
+  document_phish: 0.10
+  screenshot_overlay: 0.15
+
+# --- Legitimate Page Types ---
+legitimate_types:
+  login: 0.30
+  landing: 0.25
+  about: 0.20
+  docs: 0.15
+  blog: 0.10
 
 # --- Generation Parameters ---
 generation:
-  # Hidden fields injected into phishing pages: [min, max]
   hidden_fields_phishing: [1, 4]
+  brand_domain_unknown_rate: 0.15
 
 # --- Output ---
 output:
